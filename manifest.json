@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "NTHU OJ Helper",
+  "version": "3.0",
+  "description": "NTHU OJ 自動化輔助工具：批量提交程式碼、Status 頁增強、批量上傳測資",
+  "content_scripts": [
+    {
+      "matches": ["*://140.114.86.166/*", "*://acm.cs.nthu.edu.tw/*"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "world": "MAIN"
+    }
+  ]
+}
