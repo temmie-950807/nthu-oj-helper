@@ -13,7 +13,7 @@
       const panel = document.createElement("div");
       panel.id = PANEL_ID;
       panel.innerHTML = `
-                <div id="oj-panel-box" style="position: fixed; bottom: 20px; right: 20px; background: #fff; border: 2px solid #ea4c89; border-radius: 8px; padding: 15px 15px 22px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; min-width: 240px; min-height: 120px; max-width: 92vw; max-height: 88vh; overflow: auto; resize: both; font-family: sans-serif;">
+                <div id="oj-panel-box" style="position: fixed; bottom: 20px; right: 20px; background: #fff; border: 2px solid #ea4c89; border-radius: 8px; padding: 15px 15px 22px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; min-width: 240px; min-height: 120px; max-width: 92vw; max-height: 88vh; overflow: auto; font-family: sans-serif;">
                     <h4 style="margin: 0 0 10px 0; color: #333; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">🚀 NTHU OJ Helper</h4>
 
                     <div id="oj-batch-section" style="display: none;">
@@ -65,6 +65,39 @@
           JSON.stringify({ w: box.style.width, h: box.style.height }),
         );
       }).observe(box);
+
+      // 縮放把手放左上角。面板釘在螢幕右下角，往左上拖才是變大的方向，
+      // CSS 原生 resize 的把手固定在右下角，方向剛好相反，所以自己做。
+      const grip = document.createElement("div");
+      grip.title = "拖曳調整面板大小";
+      grip.style.cssText =
+        "position:absolute; top:0; left:0; width:16px; height:16px; cursor:nwse-resize;" +
+        "border-radius:6px 0 0 0; background:linear-gradient(135deg,#ea4c89 0 45%,transparent 45%);";
+      box.appendChild(grip);
+
+      const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+      grip.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        const x0 = e.clientX;
+        const y0 = e.clientY;
+        // 用 computed 值：面板是 content-box，offsetWidth 含 padding 會讓第一下跳動
+        const w0 = parseFloat(getComputedStyle(box).width);
+        const h0 = parseFloat(getComputedStyle(box).height);
+        grip.setPointerCapture(e.pointerId);
+
+        const onMove = (ev) => {
+          box.style.width =
+            clamp(w0 - (ev.clientX - x0), 240, innerWidth * 0.92) + "px";
+          box.style.height =
+            clamp(h0 - (ev.clientY - y0), 120, innerHeight * 0.88) + "px";
+        };
+        grip.addEventListener("pointermove", onMove);
+        grip.addEventListener(
+          "pointerup",
+          () => grip.removeEventListener("pointermove", onMove),
+          { once: true },
+        );
+      });
     }
 
     function getLangByExtension(filename, fallbackLang) {
