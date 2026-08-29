@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "3.0",
+  "version": "3.1",
   "description": "NTHU OJ 自動化輔助工具：批量提交程式碼、Status 頁增強、批量上傳測資",
   "content_scripts": [
     {

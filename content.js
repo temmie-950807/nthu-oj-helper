@@ -5,6 +5,7 @@
     const PANEL_ID = "nthu-oj-helper-panel";
     const STORAGE_LANG_KEY = "nthu_oj_last_lang";
     const STORAGE_HISTORY_KEY = "nthu_oj_file_history";
+    const STORAGE_SIZE_KEY = "nthu_oj_panel_size";
 
     function injectUI() {
       if (document.getElementById(PANEL_ID)) return;
@@ -12,7 +13,7 @@
       const panel = document.createElement("div");
       panel.id = PANEL_ID;
       panel.innerHTML = `
-                <div style="position: fixed; bottom: 20px; right: 20px; background: #fff; border: 2px solid #ea4c89; border-radius: 8px; padding: 15px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; font-family: sans-serif;">
+                <div id="oj-panel-box" style="position: fixed; bottom: 20px; right: 20px; background: #fff; border: 2px solid #ea4c89; border-radius: 8px; padding: 15px 15px 22px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; min-width: 240px; min-height: 120px; max-width: 92vw; max-height: 88vh; overflow: auto; resize: both; font-family: sans-serif;">
                     <h4 style="margin: 0 0 10px 0; color: #333; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">🚀 NTHU OJ Helper</h4>
 
                     <div id="oj-batch-section" style="display: none;">
@@ -50,6 +51,20 @@
                 </div>
             `;
       document.body.appendChild(panel);
+
+      // 還原上次拖出來的尺寸，並在每次縮放後記住
+      const box = document.getElementById("oj-panel-box");
+      const saved = JSON.parse(localStorage.getItem(STORAGE_SIZE_KEY) || "null");
+      if (saved) {
+        box.style.width = saved.w;
+        if (saved.h) box.style.height = saved.h;
+      }
+      new ResizeObserver(() => {
+        localStorage.setItem(
+          STORAGE_SIZE_KEY,
+          JSON.stringify({ w: box.style.width, h: box.style.height }),
+        );
+      }).observe(box);
     }
 
     function getLangByExtension(filename, fallbackLang) {
