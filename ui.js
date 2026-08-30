@@ -540,6 +540,47 @@
     applyConditional();
   }
 
+  // Split / Write / Preview。掛在 Description 卡片頭右側，一次控制該卡片
+  // 底下三個編輯器（description / input / output）。
+  function buildModeSeg(card) {
+    const MODES = [
+      ["Split", ""],
+      ["Write", "is-write"],
+      ["Preview", "is-preview"],
+    ];
+    const seg = el("div", "ojui-seg");
+    const btns = MODES.map(([label, cls]) => {
+      const b = el("button");
+      b.type = "button";
+      b.textContent = label;
+      b.addEventListener("click", () => {
+        card
+          .querySelectorAll(".ojmd-row")
+          .forEach((r) => (r.className = "ojmd-row" + (cls ? " " + cls : "")));
+        btns.forEach((x, i) =>
+          x.setAttribute("aria-selected", MODES[i][1] === cls ? "true" : "false"),
+        );
+      });
+      seg.appendChild(b);
+      return b;
+    });
+    btns[0].setAttribute("aria-selected", "true");
+    return seg;
+  }
+
+  // editor.js 的接管是異步的（要等 CKEditor ready），可能早於也可能晚於
+  // 這裡建卡片。所以主流程結束時掃一次，並持續監聽晚到的通知。
+  function attachModeSeg() {
+    document.querySelectorAll(".ojui-card").forEach((card) => {
+      if (!card.querySelector(".ojmd-row")) return;
+      const head = card.querySelector(".ojui-card-head");
+      if (!head || head.querySelector(".ojui-seg")) return;
+      const tools = el("div", "ojui-card-tools");
+      tools.appendChild(buildModeSeg(card));
+      head.appendChild(tools);
+    });
+  }
+
   function cardHead(paneId, toolsNode) {
     const [title, desc] = CARD[paneId] || [paneId, ""];
     const head = el("div", "ojui-card-head");
@@ -690,12 +731,20 @@
     const idx = Math.max(0, PANES.findIndex((p) => p.id === want));
     select(idx);
     sync();
+    attachModeSeg();
+    document.addEventListener("ojmd:ready", attachModeSeg);
 
+    // readiness 會重畫 innerHTML，不能每個按鍵都跑一次
+    let syncTimer;
+    const syncSoon = () => {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(sync, 200);
+    };
     document.addEventListener("input", () => {
       markDirty();
-      sync();
+      syncSoon();
     });
-    document.addEventListener("change", sync);
+    document.addEventListener("change", syncSoon);
 
     document.addEventListener("keydown", (e) => {
       if (!(e.metaKey || e.ctrlKey)) return;
