@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "4.5",
-  "description": "NTHU OJ 自動化輔助工具：批量提交程式碼、Status 頁增強、批量上傳測資、Markdown + LaTeX 出題、題目 zip 匯入匯出",
+  "version": "5.0",
+  "description": "NTHU OJ 自動化輔助工具：批量提交程式碼、Status 頁增強、批量上傳測資、Markdown + LaTeX 出題、題目 zip 匯入匯出、Edit Problem 介面改造",
   "content_scripts": [
     {
       "matches": ["*://140.114.86.166/*", "*://acm.cs.nthu.edu.tw/*"],
@@ -15,13 +15,15 @@
         "*://140.114.86.166/problem/*",
         "*://acm.cs.nthu.edu.tw/problem/*"
       ],
+      "css": ["ui.css"],
       "js": [
         "vendor/mathjax-config.js",
         "vendor/marked.min.js",
         "vendor/tex-svg.js",
         "vendor/fflate.min.js",
         "editor.js",
-        "transfer.js"
+        "transfer.js",
+        "ui.js"
       ],
       "run_at": "document_end",
       "world": "MAIN"

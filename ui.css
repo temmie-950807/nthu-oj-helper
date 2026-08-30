@@ -1,0 +1,430 @@
+/* ============================================================
+   NTHU OJ Helper — Edit Problem 後台改造
+   所有樣式都關在 .ojui 底下，不會外洩到 OJ 其他頁面。
+   ============================================================ */
+
+/* ---- 設計 token ----------------------------------------------
+   要換配色只改這一段。把 tweakcn 匯出的變數貼進來覆蓋即可，
+   底下的元件樣式一律走變數，不必動。
+   ------------------------------------------------------------- */
+.ojui {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(240 10% 3.9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(240 10% 3.9%);
+  --primary: hsl(240 5.9% 10%);
+  --primary-foreground: hsl(0 0% 98%);
+  --secondary: hsl(240 4.8% 95.9%);
+  --secondary-foreground: hsl(240 5.9% 10%);
+  --muted: hsl(240 4.8% 95.9%);
+  --muted-foreground: hsl(240 3.8% 46.1%);
+  --accent: hsl(240 4.8% 95.9%);
+  --accent-foreground: hsl(240 5.9% 10%);
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(240 5.9% 90%);
+  --input: hsl(240 5.9% 90%);
+  --ring: hsl(240 5% 65%);
+  --radius: 0.5rem;
+
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.ojui *,
+.ojui *::before,
+.ojui *::after {
+  box-sizing: border-box;
+}
+
+/* ---- Page heading with actions（固定在頂端） ----------------
+   後台工具頁，Save 不能隨捲動消失。
+   ------------------------------------------------------------- */
+.ojui-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  margin-bottom: 0;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+
+.ojui-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.ojui-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.ojui-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ---- Buttons ------------------------------------------------- */
+.ojui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: none; /* 後台工具，不要動畫 */
+}
+
+.ojui-btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.ojui-btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.ojui-btn-primary:hover {
+  background: color-mix(in srgb, var(--primary) 88%, white);
+  color: var(--primary-foreground);
+}
+
+.ojui-btn-outline {
+  background: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.ojui-btn-outline:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.ojui-btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+}
+.ojui-btn-ghost:hover {
+  background: var(--accent);
+}
+
+.ojui-btn-destructive {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+}
+.ojui-btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* ---- Underline tabs ------------------------------------------ */
+.ojui-tabs {
+  position: sticky;
+  top: 58px;
+  z-index: 39;
+  display: flex;
+  gap: 2px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.ojui-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ojui-tab:hover {
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.ojui-tab[aria-selected="true"] {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+}
+
+.ojui-tab:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.ojui-tab-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* ---- Form sections（左 label 右 input） ---------------------- */
+.ojui-section {
+  padding: 0 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.ojui-section:last-child {
+  border-bottom: none;
+}
+
+.ojui-section-title {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ojui-section-desc {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.ojui-field {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 12px 20px;
+  align-items: start;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}
+
+.ojui-field:first-of-type {
+  border-top: none;
+}
+
+.ojui-field > label,
+.ojui-field > .ojui-label {
+  padding-top: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.ojui-help {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 720px) {
+  .ojui-field {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .ojui-field > label,
+  .ojui-field > .ojui-label {
+    padding-top: 0;
+  }
+}
+
+/* ---- Inputs -------------------------------------------------- */
+.ojui input[type="text"],
+.ojui input[type="number"],
+.ojui input[type="email"],
+.ojui input[type="url"],
+.ojui select,
+.ojui textarea {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  box-shadow: none;
+}
+
+.ojui input:focus,
+.ojui select:focus,
+.ojui textarea:focus {
+  outline: 2px solid var(--ring);
+  outline-offset: -1px;
+  border-color: var(--ring);
+}
+
+.ojui select {
+  appearance: none;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2371717a' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 16px;
+}
+
+/* Checkbox：原生 checkbox 太小又難對齊 */
+.ojui-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ojui-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Number input with unit（Origin UI 風格的後綴標籤） */
+.ojui-unit {
+  display: inline-flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: 150px;
+}
+.ojui-unit input[type="number"] {
+  border-radius: calc(var(--radius) - 2px) 0 0 calc(var(--radius) - 2px);
+  border-right: none;
+  text-align: right;
+  min-width: 0;
+}
+.ojui-unit-suffix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border: 1px solid var(--input);
+  border-radius: 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0;
+  white-space: nowrap;
+}
+
+/* File input：原生的樣子在各瀏覽器都很醜 */
+.ojui input[type="file"] {
+  width: 100%;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+}
+.ojui input[type="file"]::file-selector-button {
+  height: 24px;
+  margin-right: 10px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* ---- Table --------------------------------------------------- */
+.ojui-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ojui table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 0;
+}
+
+.ojui table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.ojui table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.ojui table tr:last-child td {
+  border-bottom: none;
+}
+
+.ojui table tbody tr:hover {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.ojui-empty {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+/* ---- 雜項 ---------------------------------------------------- */
+.ojui-panel {
+  display: none;
+}
+.ojui-panel.is-active {
+  display: block;
+}
+
+.ojui-hint {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.ojui code {
+  padding: 1px 5px;
+  font-size: 12px;
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+/* OJ 原本的 Bootstrap 樣式會蓋掉上面的設定，這裡壓回去 */
+.ojui .form-group {
+  margin: 0;
+}
+.ojui .btn {
+  text-shadow: none;
+  background-image: none;
+  box-shadow: none;
+}
