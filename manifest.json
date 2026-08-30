@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "6.9",
+  "version": "7.1",
   "description": "NTHU OJ 出題與刷題輔助：Edit Problem 介面改造、Markdown + LaTeX 出題、題目 zip 匯入匯出、批量提交、Status 頁增強",
   "content_scripts": [
     {
@@ -42,9 +42,12 @@
         "*://acm.cs.nthu.edu.tw/problem/*"
       ],
       "css": [
+        "fonts.css",
         "ui.css",
         "tag.css",
-        "testcase.css"
+        "testcase.css",
+        "sample.css",
+        "dark.css"
       ],
       "js": [
         "vendor/mathjax-config.js",
@@ -55,7 +58,8 @@
         "transfer.js",
         "ui.js",
         "tag.js",
-        "testcase.js"
+        "testcase.js",
+        "sample.js"
       ],
       "run_at": "document_end",
       "world": "MAIN"
@@ -63,5 +67,16 @@
   ],
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "vendor/fonts/*.woff2"
+      ],
+      "matches": [
+        "*://140.114.86.166/*",
+        "*://acm.cs.nthu.edu.tw/*"
+      ]
+    }
+  ]
 }

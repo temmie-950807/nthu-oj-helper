@@ -148,9 +148,15 @@
 
     META_FIELDS.forEach((n) => {
       const e = $(n);
-      if (e && meta.fields?.[n] !== undefined) e.value = meta.fields[n];
+      if (!e || meta.fields?.[n] === undefined) return;
+      e.value = meta.fields[n];
+      e.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    if ($("visible")) $("visible").checked = !!meta.visible;
+    const vis = $("visible");
+    if (vis) {
+      vis.checked = !!meta.visible;
+      vis.dispatchEvent(new Event("change", { bubbles: true }));
+    }
 
     MD_FIELDS.forEach((n) => {
       const e = document.getElementById("id_" + n);
@@ -159,10 +165,18 @@
       e.value = dec(f);
       e.dispatchEvent(new Event("input", { bubbles: true })); // 觸發預覽重畫
     });
-    if ($("sample_in") && files["sample/in.txt"])
-      $("sample_in").value = dec(files["sample/in.txt"]);
-    if ($("sample_out") && files["sample/out.txt"])
-      $("sample_out").value = dec(files["sample/out.txt"]);
+    // 直接寫 value 不會產生事件，而 ui.js 的完成度面板與 segmented /
+    // radio card 都是靠 document 上的 input/change 重算的。不補這幾發，
+    // 匯入後畫面會停在舊狀態，跟實際會送出的值不一致。
+    [
+      ["sample_in", "sample/in.txt"],
+      ["sample_out", "sample/out.txt"],
+    ].forEach(([name, path]) => {
+      const e = $(name);
+      if (!e || !files[path]) return;
+      e.value = dec(files[path]);
+      e.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 
     if (inNames.length) await replaceTestcases(files, inNames, meta, status);
 

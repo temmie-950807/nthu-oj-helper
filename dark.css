@@ -1,0 +1,122 @@
+/* ============================================================
+   NTHU OJ Helper — 深色模式
+   ui.css 之後載入。主體只是把同一組 token 重新宣告一次；
+   底下第二段是 ui.css 裡寫死、不走變數，因此深色下必壞的幾條。
+   ============================================================ */
+
+@media (prefers-color-scheme: dark) {
+  .ojui,
+  body.ojui-page {
+    --canvas: #17151a;
+    --surface: #201d26;
+    --ink: #ece9f0;
+    --muted: #a49bb0;
+    --hair: #322d3b;
+    --line: #5a5268;
+
+    --accent: #a78bda;
+    /* 淺色模式 hover 是壓暗，深色要反過來提亮 */
+    --accent-hover: #bda6e6;
+    /* soft 底色改成主色低透明度疊加，用淺色實色會在暗底炸出亮斑 */
+    --accent-soft: rgba(167, 139, 218, 0.14);
+
+    --ok: #3fbd7f;
+    --ok-soft: rgba(63, 189, 127, 0.14);
+    --gold: #d9a338;
+    --gold-soft: rgba(217, 163, 56, 0.14);
+    --danger: #f2766c;
+    --danger-soft: rgba(242, 118, 108, 0.14);
+
+    /* 原本 #231a2e 對 #17151a 只有 1.09:1，會跟頁面糊成一片 */
+    --nav: #3a2d52;
+  }
+
+  /* ---- 以下都是 ui.css 寫死的顏色，不受變數控制 ---------------- */
+
+  /* 淺灰 hover 底（#eeebe7 / #faf9f7）在暗底會變成亮塊 */
+  .ojui-btn-quiet:hover,
+  .ojui-railitem:hover,
+  .ojui .ojmd-toolbar button:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+  .ojui table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* 深灰字（#3f3b39）在暗底等於看不見 */
+  .ojui-railitem,
+  .ojui .ojmd-toolbar button {
+    color: #c4bdd0;
+  }
+
+  /* 近白色的列分隔線（#ece9e5）在暗底會變成一條條亮線 */
+  .ojui table td {
+    border-bottom-color: var(--hair);
+  }
+
+  /* #bdb7b0 是淺色系的 hover 邊框，暗底下太刺眼 */
+  .ojui-btn-ghost:hover,
+  .ojui input:hover:not(:focus),
+  .ojui select:hover:not(:focus) {
+    border-color: #6e6584;
+  }
+
+  /* focus ring 用的是淺色模式主色 rgba(91,45,144,…)，
+     暗紫低透明度疊在暗底上幾乎看不出來——這是可及性問題，必補 */
+  .ojui-btn:focus-visible,
+  .ojui-railitem:focus-visible,
+  .ojui-toggle:focus-visible .ojui-toggle-track,
+  .ojui-seg button:focus-visible {
+    box-shadow: 0 0 0 3px rgba(167, 139, 218, 0.45);
+  }
+  .ojui .ojmd-toolbar button:focus-visible {
+    box-shadow: 0 0 0 2px rgba(167, 139, 218, 0.5);
+  }
+  .ojui input:focus,
+  .ojui select:focus,
+  .ojui textarea:focus {
+    box-shadow: 0 0 0 3px rgba(167, 139, 218, 0.28);
+  }
+  .ojui-cellinp:focus {
+    box-shadow: 0 0 0 2px rgba(167, 139, 218, 0.3);
+  }
+
+  /* #fff on --accent 只有 2.86:1，主按鈕文字改深色（6.34:1 / hover 8.42:1） */
+  .ojui-btn-primary,
+  .ojui-btn-primary:hover {
+    color: var(--canvas);
+  }
+  .ojui-btn-primary .ojui-kbd {
+    background: rgba(0, 0, 0, 0.16);
+    border-color: rgba(0, 0, 0, 0.28);
+    color: rgba(0, 0, 0, 0.72);
+  }
+
+  /* toggle 白色圓鈕對 --ok 只有 2.39:1，開啟態改深色鈕；
+     關閉態的軌道是 --hair，白鈕仍然正確，所以只改 on 的那一邊 */
+  .ojui-toggle[aria-pressed="true"] .ojui-toggle-track i {
+    background: var(--canvas);
+  }
+
+  /* 下拉箭頭是 base64 SVG，stroke 寫死 #6b6664（對 --surface 2.93:1，
+     不到 UI 元件要求的 3:1），整張圖換掉才改得動顏色 */
+  .ojui select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a49bb0' stroke-width='1.5'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  }
+
+  /* 這兩塊底色是淺色 canvas 的半透明疊加（rgba(247,246,244,…)），
+     疊在暗底上會整條發白，換成暗色 canvas 的同比例疊加 */
+  .ojui .ojmd-toolbar {
+    background: rgba(23, 21, 26, 0.6);
+  }
+  .ojui .ojmd-preview {
+    background: rgba(23, 21, 26, 0.4);
+  }
+
+  /* 選單底色跟卡片同為 --surface，全靠 rgba(0,0,0,.1) 陰影撐起層次，
+     暗底下那個陰影等於不存在，選單會跟卡片黏在一起 */
+  .ojui-menu {
+    border-color: var(--line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  }
+}

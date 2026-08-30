@@ -1,0 +1,80 @@
+/* ============================================================
+   NTHU OJ Helper — Sample IO 並排版面（sample.js 專用）
+   token 沿用 ui.css 的 --hair / --canvas / --muted / --mono …
+   全部關在 .ojui 底下，不外洩到站台其他頁面。
+   ============================================================ */
+
+/* 外框統一收邊，兩個 textarea 自己不畫線 */
+.ojui .ojsample-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.ojui .ojsample-grid:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(91, 45, 144, 0.14);
+}
+
+.ojui .ojsample-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* 沒有這行，長行輸入會把 grid 欄撐爆而不是自己捲動 */
+}
+.ojui .ojsample-cell + .ojsample-cell {
+  border-left: 1px solid #ece9e5;
+}
+
+/* ---- 欄位標題 -------------------------------------------------- */
+.ojui .ojsample-label {
+  padding: 7px 12px;
+  background: var(--canvas);
+  border-bottom: 1px solid #ece9e5;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+/* focus 落在哪一欄要看得出來，外框變色不分左右 */
+.ojui .ojsample-cell:focus-within .ojsample-label {
+  color: var(--accent);
+}
+
+/* ---- textarea -------------------------------------------------- */
+.ojui .ojsample-cell textarea {
+  height: 300px; /* 蓋掉 markup 上的 rows="20"，兩欄並排時 20 行太高 */
+  min-height: 120px;
+  max-width: none;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 0;
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+  resize: vertical;
+}
+.ojui .ojsample-cell textarea:focus {
+  outline: none;
+  border: 0;
+  box-shadow: none; /* 蓋掉 ui.css 的通用 textarea focus ring，改由外框顯示 */
+}
+
+/* ---- 窄視窗改上下排 -------------------------------------------- */
+@media (max-width: 900px) {
+  .ojui .ojsample-grid {
+    grid-template-columns: 1fr;
+  }
+  .ojui .ojsample-cell + .ojsample-cell {
+    border-left: 0;
+    border-top: 1px solid #ece9e5;
+  }
+  .ojui .ojsample-cell textarea {
+    height: 220px;
+  }
+}

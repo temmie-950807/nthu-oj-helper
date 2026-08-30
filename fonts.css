@@ -1,0 +1,28 @@
+/* DESIGN.md 指定 IBM Plex Sans + JetBrains Mono 並明文禁用系統預設 sans，
+   但這個 OJ 未來可能斷外網，Google Fonts 的 CDN 連結不能用。所以把字體
+   打包進擴充功能。
+
+   兩支都是 variable font（IBM Plex Sans wght 100–700、JetBrains Mono
+   wght 400–800），單一檔案涵蓋規範要的所有字重，比一個字重一個檔省得多。
+   只含 latin 子集，共 72KB。
+
+   中文沒有打包：Noto Sans TC 完整字集 10MB 以上，子集化後仍在 MB 等級，
+   為了字型細節塞這麼大一包不划算。中文交給系統的 PingFang TC /
+   Microsoft JhengHei，兩大平台都有堪用的內建字體（fallback 順序寫在
+   ui.css 的 --sans）。 */
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("vendor/fonts/ibm-plex-sans-latin.woff2") format("woff2");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("vendor/fonts/jetbrains-mono-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}

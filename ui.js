@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "6.9"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+  const VERSION = "7.1"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
 
   const el = (t, c) => {
     const e = document.createElement(t);
@@ -419,6 +419,7 @@
     paint();
     sel.style.display = "none";
     seg.appendChild(sel);
+    seg.__paint = paint; // 值被外部改動時（例如匯入 zip）要能重畫
     return seg;
   }
 
@@ -813,6 +814,17 @@
     document.addEventListener("change", (e) => {
       if (e.target?.closest?.("#problem_info")) markDirty();
       syncSoon();
+    });
+
+    // 匯入 zip 之類的外部寫入只會改 select.value + 發 change，
+    // 不重畫的話 segmented 與 radio card 會顯示舊值，跟實際送出的不一致。
+    ["judge_source", "judge_type"].forEach((n) => {
+      $n(n)?.addEventListener("change", () => {
+        document.querySelector(".ojui-seg")?.__paint?.();
+        document.getElementById("ojui-judge-type-cards")?.__render?.();
+        applyConditional();
+        syncSoon();
+      });
     });
 
     const pForm = document.getElementById("problem_info");
