@@ -39,8 +39,29 @@
       .replace(new RegExp(MARK + "(\\d+)" + MARK, "g"), (_, i) => math[i]);
   }
 
+  // MathJax 的產物包在 <mjx-container> 這種自訂標籤裡，靠 MathJax 的外部
+  // CSS 才會正確排版。前台沒有那份 CSS，所以存檔前要把它們攤平成純 SVG，
+  // 並自己把獨立公式置中。順便清掉 MathML 副本——它同樣只靠外部 CSS 隱藏，
+  // 留著會讓每條公式被畫兩次。
+  function flatten(root) {
+    root.querySelectorAll("mjx-assistive-mml").forEach((e) => e.remove());
+    root.querySelectorAll("mjx-container").forEach((c) => {
+      const svg = c.querySelector("svg");
+      if (!svg) return c.remove();
+      if (c.getAttribute("display") === "true") {
+        const d = document.createElement("div");
+        d.style.cssText = "text-align:center;margin:1em 0;";
+        d.appendChild(svg);
+        c.replaceWith(d);
+      } else {
+        c.replaceWith(svg);
+      }
+    });
+  }
+
   // 把 $...$ 轉成自包含的 SVG。前台沒有 MathJax，所以公式必須在存檔前就
-  // 變成圖形，否則學生只會看到一堆錢號。
+  // 變成圖形，否則學生只會看到一堆錢號。預覽也走這條路徑，這樣預覽看到的
+  // 就是前台會顯示的東西。
   async function typeset(html) {
     const holder = document.createElement("div");
     holder.style.cssText = "position:absolute;left:-99999px;top:0;width:800px;";
@@ -48,6 +69,7 @@
     document.body.appendChild(holder);
     try {
       await MathJax.typesetPromise([holder]);
+      flatten(holder);
       return holder.innerHTML;
     } finally {
       MathJax.startup.document.clear();

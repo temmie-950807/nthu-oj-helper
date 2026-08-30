@@ -16,4 +16,8 @@ window.MathJax = {
   svg: { fontCache: "none" },
   // 不要自動掃描整頁。OJ 頁面到處是錢號與程式碼，自動掃描會誤轉換。
   startup: { typeset: false },
+  // 關掉給螢幕閱讀器用的 MathML 副本。它只靠 MathJax 的外部 CSS 隱藏，
+  // 而前台沒有那份 CSS，Chrome 又原生支援 MathML，結果就是同一條公式
+  // 被畫兩次（SVG 一次、MathML 一次）。
+  options: { enableAssistiveMml: false },
 };
