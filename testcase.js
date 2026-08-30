@@ -68,7 +68,40 @@
     td.appendChild(el("span", "ojtc-missing", "缺少 " + (base ? base + ext : "對應的 " + ext)));
   }
 
-  /* ---------- 3. 檔案大小（HEAD，最多 4 並行，失敗安靜略過） ---------- */
+  /* ---------- 3. 檔案大小（最多 4 並行，失敗安靜略過） ---------- */
+
+  // 這台伺服器的回應走 chunked：HEAD 與 GET 都不帶 content-length（實測），
+  // 而且不支援 Range（帶了仍回 200 與完整內容）。所以只能實際讀，但讀到
+  // 上限就中止——不能為了顯示一個大小把幾十 MB 的測資整包拉下來。
+  const SIZE_LIMIT = 2 * 1024 * 1024;
+
+  async function measure(url) {
+    const ctrl = new AbortController();
+    let res;
+    try {
+      res = await fetch(url, { credentials: "same-origin", signal: ctrl.signal });
+    } catch (_) {
+      return null;
+    }
+    if (!res.ok || !res.body) return null;
+    const reader = res.body.getReader();
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.length;
+        if (total > SIZE_LIMIT) {
+          ctrl.abort();
+          return { over: true, bytes: SIZE_LIMIT };
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return { over: false, bytes: total };
+  }
+
   function loadSizes(table) {
     const links = Array.prototype.filter.call(
       table.querySelectorAll('td a[href*="/problem/testcase/"]'),
@@ -80,14 +113,14 @@
     const worker = async () => {
       while (cursor < links.length) {
         const a = links[cursor++];
-        try {
-          const res = await fetch(a.href, { method: "HEAD", credentials: "same-origin" });
-          const n = res.ok ? Number(res.headers.get("content-length")) : NaN;
-          // 沒有 content-length（chunked）或非 2xx 就什麼都不顯示
-          if (Number.isFinite(n) && n >= 0) a.after(el("span", "ojtc-size", fmtSize(n)));
-        } catch (_) {
-          /* 安靜略過，不擋整頁 */
-        }
+        const r = await measure(a.href);
+        // 量不到就什麼都不顯示。原本用 Number(headers.get(...))，而
+        // headers.get 找不到時回 null、Number(null) 是 0 不是 NaN，
+        // 守衛整個穿透，每一列都印出誤導人的 "0 B"。
+        if (!r) continue;
+        a.after(
+          el("span", "ojtc-size", (r.over ? "> " : "") + fmtSize(r.bytes)),
+        );
       }
     };
     for (let i = 0; i < Math.min(HEAD_CONCURRENCY, links.length); i++) worker();
