@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "6.8"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+  const VERSION = "6.9"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
 
   const el = (t, c) => {
     const e = document.createElement(t);
@@ -461,7 +461,7 @@
             onChange?.();
           });
           lab.append(input, txt);
-          box.appendChild(lab);
+          list.appendChild(lab);
         });
       // 目前值與 source 不符（例如剛切換 source）就自動選第一個合法選項
       const legal = [...sel.options].filter((o) => o.value.startsWith(src));
