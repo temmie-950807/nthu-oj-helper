@@ -14,16 +14,25 @@
   const b64d = (s) =>
     new TextDecoder().decode(Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
 
-  // 從存過的內容裡取回原稿；沒有就回傳 null（代表這是還沒用過本工具的舊題目）
+  // 從存過的內容裡取回原稿；沒有就回傳 null（代表這是還沒用過本工具的舊題目）。
+  // 會一路往內剝：先前的版本在轉換失敗時會把「已轉換的整份內容」再當成原稿
+  // 包一層，剝到底才能救回真正的原始 Markdown。
   function extractMarkdown(stored) {
-    if (!stored.startsWith(TAG_OPEN)) return null;
-    const end = stored.indexOf(TAG_CLOSE);
-    if (end === -1) return null;
-    try {
-      return b64d(stored.slice(TAG_OPEN.length, end));
-    } catch {
-      return null;
+    let cur = stored;
+    let found = null;
+    for (let depth = 0; depth < 10 && cur.startsWith(TAG_OPEN); depth++) {
+      const end = cur.indexOf(TAG_CLOSE);
+      if (end === -1) break;
+      let inner;
+      try {
+        inner = b64d(cur.slice(TAG_OPEN.length, end));
+      } catch {
+        break;
+      }
+      if (inner === cur) break;
+      found = cur = inner;
     }
+    return found;
   }
 
   // 先把數學抽掉再跑 Markdown。不這樣做的話 $x_1 + x_2$ 裡的底線
@@ -77,13 +86,23 @@
     }
   }
 
-  function setupField(id) {
+  function setupField(id, inst) {
     const ta = document.getElementById(id);
-    if (!ta) return;
+    if (!ta) return false;
 
-    const inst = window.CKEDITOR && CKEDITOR.instances[id];
-    const stored = inst ? inst.getData() : ta.value;
-    if (inst) inst.destroy(true);
+    // 讀 textarea 而非 inst.getData()：textarea 是伺服器吐出的原文，
+    // 沒被 CKEditor 正規化過。
+    const stored = ta.value;
+    // destroy 失敗就整個放棄這個欄位。CKEditor 若還活著，它會在送出時把
+    // 自己的內容寫回 textarea，蓋掉我們轉好的結果——半殘狀態會毀資料。
+    if (inst) {
+      try {
+        inst.destroy(true);
+      } catch (err) {
+        console.error("[OJ Helper] CKEditor destroy 失敗，" + id + " 維持原狀", err);
+        return false;
+      }
+    }
 
     // 舊題目沒有藏原稿，就把既有 HTML 當原稿用。Markdown 允許 inline HTML，
     // 所以原本的內容會原樣輸出，不會因為換模式就爛掉。
@@ -119,6 +138,16 @@
       timer = setTimeout(render, 250);
     });
     render();
+    return true;
+  }
+
+  // CKEditor 4 的實例是異步建好的。load 事件時 CKEDITOR.instances[id] 已經
+  // 存在，但內部還沒 ready，這時候呼叫 destroy() 會拋 TypeError。
+  function whenReady(id, cb) {
+    const inst = window.CKEDITOR && CKEDITOR.instances[id];
+    if (!inst) return cb(null); // 沒有 CKEditor 接管，直接處理 textarea
+    if (inst.status === "ready") return cb(inst);
+    inst.on("instanceReady", () => cb(inst));
   }
 
   window.addEventListener("load", () => {
@@ -128,7 +157,18 @@
       return;
     }
 
-    FIELDS.forEach(setupField);
+    // 只有成功接管的欄位才會在送出時被轉換。某個欄位若接管失敗，
+    // 它就維持原本的 CKEditor 行為，不會被我們寫壞。
+    const active = new Set();
+    FIELDS.forEach((id) =>
+      whenReady(id, (inst) => {
+        try {
+          if (setupField(id, inst)) active.add(id);
+        } catch (err) {
+          console.error("[OJ Helper] " + id + " 接管失敗", err);
+        }
+      }),
+    );
 
     const form = document.getElementById(FIELDS[0])?.closest("form");
     if (!form) return;
@@ -136,11 +176,14 @@
     // submit 事件不能等 async，所以攔下來、轉換完再用 form.submit() 送出
     // （form.submit() 不會重新觸發 submit 事件，不會無限迴圈）。
     form.addEventListener("submit", async (e) => {
+      if (!active.size) return; // 一個欄位都沒接管成功就完全不介入
       e.preventDefault();
-      for (const id of FIELDS) {
+      for (const id of active) {
         const ta = document.getElementById(id);
         if (!ta) continue;
-        const md = ta.value;
+        // 再剝一次殼。萬一 textarea 裡是已轉換的內容（例如接管時序出過問題），
+        // 直接拿去轉換會把整份輸出當成原稿再包一層，愈包愈深。
+        const md = extractMarkdown(ta.value) ?? ta.value;
         ta.value = `${TAG_OPEN}${b64e(md)}${TAG_CLOSE}\n${await typeset(mdToHtml(md))}`;
       }
       form.submit();
