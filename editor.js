@@ -52,6 +52,150 @@
   // CSS 才會正確排版。前台沒有那份 CSS，所以存檔前要把它們攤平成純 SVG，
   // 並自己把獨立公式置中。順便清掉 MathML 副本——它同樣只靠外部 CSS 隱藏，
   // 留著會讓每條公式被畫兩次。
+  // ===== 工具列 =====
+
+  function insert(ta, before, after, ph) {
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e) || ph || "";
+    ta.setRangeText(before + sel + after, s, e, "end");
+    ta.setSelectionRange(s + before.length, s + before.length + sel.length);
+    ta.focus();
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  // 標題、清單、引用這類語法要加在行首，不能包住選取範圍
+  function prefixLine(ta, prefix) {
+    const s = ta.selectionStart;
+    const at = ta.value.lastIndexOf("\n", s - 1) + 1;
+    ta.setRangeText(prefix, at, at, "end");
+    ta.focus();
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  // OJ 沒有圖片上傳端點，而且未來可能斷外網——外部圖床的連結那天會全部
+  // 變破圖。所以直接把圖片編碼進題目本體，順便縮圖控制大小。
+  function shrink(file, maxSide) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/png"));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("圖片讀取失敗"));
+      };
+      img.src = url;
+    });
+  }
+
+  function pickImage(ta) {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "image/*";
+    inp.addEventListener("change", async () => {
+      const f = inp.files[0];
+      if (!f) return;
+      try {
+        const uri = await shrink(f, 900);
+        insert(ta, `![](${uri})`, "", "");
+        const kb = Math.round((uri.length * 3) / 4 / 1024);
+        if (kb > 300) {
+          alert(
+            `圖片內嵌後約 ${kb} KB，題目敘述欄位可能塞不下。\n建議先把圖片裁小或降低解析度再插入。`,
+          );
+        }
+      } catch (err) {
+        alert("圖片插入失敗：" + err.message);
+      }
+    });
+    inp.click();
+  }
+
+  const TABLE_TPL =
+    "\n| 欄位 A | 欄位 B |\n| --- | --- |\n| 內容 1 | 內容 2 |\n";
+
+  function buildToolbar(ta) {
+    const items = [
+      ["B", "粗體", () => insert(ta, "**", "**", "粗體")],
+      ["I", "斜體", () => insert(ta, "*", "*", "斜體")],
+      ["H", "標題", () => prefixLine(ta, "## ")],
+      ["•", "項目清單", () => prefixLine(ta, "- ")],
+      ["1.", "編號清單", () => prefixLine(ta, "1. ")],
+      ["🔗", "連結", () => insert(ta, "[", "](https://)", "文字")],
+      ["🖼", "插入圖片（縮圖後內嵌）", () => pickImage(ta)],
+      ["⊞", "表格", () => insert(ta, TABLE_TPL, "", "")],
+      ["<>", "行內程式碼", () => insert(ta, "`", "`", "code")],
+      ["▤", "程式碼區塊", () => insert(ta, "\n```\n", "\n```\n", "code")],
+      ["$x$", "行內公式", () => insert(ta, "$", "$", "x^2")],
+      ["$$", "獨立公式", () => insert(ta, "\n$$\n", "\n$$\n", "\\sum_{i=1}^{n} i")],
+    ];
+
+    const bar = document.createElement("div");
+    bar.style.cssText =
+      "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
+    items.forEach(([label, title, fn]) => {
+      const b = document.createElement("button");
+      b.type = "button"; // 不加會被當成 submit，按一下就送出整張表單
+      b.textContent = label;
+      b.title = title;
+      b.style.cssText =
+        "min-width:30px;height:28px;padding:0 8px;font-size:12px;font-weight:bold;" +
+        "background:#fff;border:1px solid #ccc;border-radius:4px;cursor:pointer;color:#333;";
+      b.addEventListener("mouseenter", () => {
+        b.style.background = "#fce4ec";
+        b.style.borderColor = "#ea4c89";
+      });
+      b.addEventListener("mouseleave", () => {
+        b.style.background = "#fff";
+        b.style.borderColor = "#ccc";
+      });
+      b.addEventListener("click", fn);
+      bar.appendChild(b);
+    });
+    return bar;
+  }
+
+  // 前台只有 Bootstrap，沒有 Markdown 專用樣式。表格會變成沒有框線的一團、
+  // 程式碼區塊沒有底色、大圖會撐爆版面。所以存檔前把樣式寫成 inline，
+  // 讓產出的 HTML 不依賴前台有什麼 CSS。
+  function styleForFrontend(root) {
+    root.querySelectorAll("table").forEach((t) => {
+      t.style.cssText = "border-collapse:collapse;margin:1em 0;";
+      t.querySelectorAll("th,td").forEach((c) => {
+        c.style.cssText = "border:1px solid #bbb;padding:6px 10px;";
+      });
+      t.querySelectorAll("th").forEach((c) => {
+        c.style.background = "#f2f2f2";
+      });
+    });
+    root.querySelectorAll("pre").forEach((p) => {
+      p.style.cssText =
+        "background:#f6f8fa;border:1px solid #ddd;border-radius:4px;padding:10px;overflow-x:auto;";
+    });
+    root.querySelectorAll("code").forEach((c) => {
+      if (c.parentElement && c.parentElement.tagName !== "PRE") {
+        c.style.cssText =
+          "background:#f0f0f0;padding:1px 4px;border-radius:3px;font-family:ui-monospace,Menlo,Consolas,monospace;";
+      }
+    });
+    root.querySelectorAll("img").forEach((i) => {
+      i.style.maxWidth = "100%";
+      i.style.height = "auto";
+    });
+    root.querySelectorAll("blockquote").forEach((b) => {
+      b.style.cssText =
+        "border-left:4px solid #ddd;margin:1em 0;padding:0 1em;color:#555;";
+    });
+  }
+
   function flatten(root) {
     root.querySelectorAll("mjx-assistive-mml").forEach((e) => e.remove());
     root.querySelectorAll("mjx-container").forEach((c) => {
@@ -79,6 +223,7 @@
     try {
       await MathJax.typesetPromise([holder]);
       flatten(holder);
+      styleForFrontend(holder);
       return holder.innerHTML;
     } finally {
       MathJax.startup.document.clear();
@@ -107,22 +252,38 @@
     // 舊題目沒有藏原稿，就把既有 HTML 當原稿用。Markdown 允許 inline HTML，
     // 所以原本的內容會原樣輸出，不會因為換模式就爛掉。
     ta.value = extractMarkdown(stored) ?? stored;
-    ta.style.cssText =
-      "display:block;width:100%;min-height:220px;font-family:ui-monospace,Menlo,Consolas,monospace;" +
-      "font-size:13px;line-height:1.5;padding:8px;border:1px solid #ccc;border-radius:4px;";
+
+    // django-ckeditor 的外框是 inline-block，會把分欄寬度綁死
+    const widget = ta.closest(".django-ckeditor-widget");
+    if (widget) widget.style.cssText = "display:block;width:100%;";
 
     const bar = document.createElement("div");
     bar.style.cssText =
       "font-size:12px;color:#ea4c89;font-weight:bold;margin:6px 0 4px;";
     bar.innerHTML =
-      "📝 Markdown 模式 — 行內公式 <code>$x^2$</code>，獨立公式 <code>$$...$$</code>";
+      "📝 左邊寫 Markdown，右邊即時預覽 — 行內公式 <code>$x^2$</code>，獨立公式 <code>$$...$$</code>";
     ta.before(bar);
+    bar.after(buildToolbar(ta));
 
     const prev = document.createElement("div");
+    // flex-basis 380px 讓視窗夠寬時左右並排、太窄時自動上下堆疊，
+    // 不必為了響應式另外注入 media query。
     prev.style.cssText =
-      "border:1px solid #ddd;border-top:3px solid #ea4c89;border-radius:0 0 4px 4px;" +
-      "padding:10px 12px;margin-bottom:12px;background:#fafafa;min-height:50px;overflow-x:auto;";
-    ta.after(prev);
+      "flex:1 1 380px;min-width:0;overflow:auto;box-sizing:border-box;" +
+      "border:1px solid #ddd;border-top:3px solid #ea4c89;border-radius:4px;" +
+      "padding:10px 12px;background:#fafafa;";
+
+    const row = document.createElement("div");
+    row.style.cssText =
+      "display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin-bottom:12px;";
+    ta.before(row);
+    row.append(ta, prev);
+
+    // resize:vertical 讓使用者自己拉高度；預覽靠 align-items:stretch 跟著等高
+    ta.style.cssText =
+      "flex:1 1 380px;min-width:0;min-height:320px;resize:vertical;box-sizing:border-box;" +
+      "display:block;font-family:ui-monospace,Menlo,Consolas,monospace;" +
+      "font-size:13px;line-height:1.5;padding:8px;border:1px solid #ccc;border-radius:4px;";
 
     let timer;
     const render = async () => {
