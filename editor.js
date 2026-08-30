@@ -162,42 +162,53 @@
     "\n| 欄位 A | 欄位 B |\n| --- | --- |\n| 內容 1 | 內容 2 |\n";
 
   function buildToolbar(ta) {
+    // null 代表分隔線，把功能相近的按鈕分組
     const items = [
       ["B", "粗體", () => insert(ta, "**", "**", "粗體")],
       ["I", "斜體", () => insert(ta, "*", "*", "斜體")],
       ["H", "標題", () => prefixLine(ta, "## ")],
+      null,
       ["•", "項目清單", () => prefixLine(ta, "- ")],
       ["1.", "編號清單", () => prefixLine(ta, "1. ")],
+      null,
       ["🔗", "連結", () => insert(ta, "[", "](https://)", "文字")],
       ["🖼", "插入圖片（縮圖後內嵌）", () => pickImage(ta)],
       ["⊞", "表格", () => insert(ta, TABLE_TPL, "", "")],
+      null,
       ["<>", "行內程式碼", () => insert(ta, "`", "`", "code")],
       ["▤", "程式碼區塊", () => insert(ta, "\n```\n", "\n```\n", "code")],
+      null,
       ["$x$", "行內公式", () => insert(ta, "$", "$", "x^2")],
       ["$$", "獨立公式", () => insert(ta, "\n$$\n", "\n$$\n", "\\sum_{i=1}^{n} i")],
     ];
 
     const bar = document.createElement("div");
-    bar.style.cssText =
-      "display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;";
-    items.forEach(([label, title, fn]) => {
+    bar.className = "ojmd-toolbar";
+    items.forEach((item) => {
+      if (!item) {
+        bar.appendChild(
+          Object.assign(document.createElement("span"), {
+            className: "ojmd-sep",
+          }),
+        );
+        return;
+      }
+      const [label, title, fn] = item;
       const b = document.createElement("button");
       b.type = "button"; // 不加會被當成 submit，按一下就送出整張表單
       b.textContent = label;
       b.title = title;
-      b.style.cssText =
-        "min-width:30px;height:28px;padding:0 8px;font-size:12px;font-weight:bold;" +
-        "background:#fff;border:1px solid #ccc;border-radius:4px;cursor:pointer;color:#333;";
-      b.addEventListener("mouseenter", () => {
-        b.style.background = "#fce4ec";
-        b.style.borderColor = "#ea4c89";
-      });
-      b.addEventListener("mouseleave", () => {
-        b.style.background = "#fff";
-        b.style.borderColor = "#ccc";
-      });
       b.addEventListener("click", fn);
       bar.appendChild(b);
+    });
+
+    const words = document.createElement("span");
+    words.className = "ojmd-words";
+    words.textContent = "0 words";
+    bar.appendChild(words);
+    ta.addEventListener("input", () => {
+      const n = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+      words.textContent = n + (n === 1 ? " word" : " words");
     });
     return bar;
   }
@@ -294,37 +305,24 @@
     ta.value =
       recovered === null ? stored : restoreImages(recovered, stored);
 
-    // django-ckeditor 的外框是 inline-block，會把分欄寬度綁死
+    // django-ckeditor 的外框是 inline-block，會把版面寬度綁死
     const widget = ta.closest(".django-ckeditor-widget");
     if (widget) widget.style.cssText = "display:block;width:100%;";
 
-    const bar = document.createElement("div");
-    bar.style.cssText =
-      "font-size:12px;color:#ea4c89;font-weight:bold;margin:6px 0 4px;";
-    bar.innerHTML =
-      "📝 左邊寫 Markdown，右邊即時預覽 — 行內公式 <code>$x^2$</code>，獨立公式 <code>$$...$$</code>";
-    ta.before(bar);
-    bar.after(buildToolbar(ta));
+    // 版面與外觀交給 ui.css，這裡只負責結構
+    const toolbar = buildToolbar(ta);
+    ta.before(toolbar);
 
     const prev = document.createElement("div");
-    // flex-basis 380px 讓視窗夠寬時左右並排、太窄時自動上下堆疊，
-    // 不必為了響應式另外注入 media query。
-    prev.style.cssText =
-      "flex:1 1 380px;min-width:0;overflow:auto;box-sizing:border-box;" +
-      "border:1px solid #ddd;border-top:3px solid #ea4c89;border-radius:4px;" +
-      "padding:10px 12px;background:#fafafa;";
+    prev.className = "ojmd-preview";
 
     const row = document.createElement("div");
-    row.style.cssText =
-      "display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin-bottom:12px;";
+    row.className = "ojmd-row";
     ta.before(row);
     row.append(ta, prev);
-
-    // resize:vertical 讓使用者自己拉高度；預覽靠 align-items:stretch 跟著等高
-    ta.style.cssText =
-      "flex:1 1 380px;min-width:0;min-height:320px;resize:vertical;box-sizing:border-box;" +
-      "display:block;font-family:ui-monospace,Menlo,Consolas,monospace;" +
-      "font-size:13px;line-height:1.5;padding:8px;border:1px solid #ccc;border-radius:4px;";
+    ta.className = "ojmd-input";
+    ta.removeAttribute("style");
+    ta.dataset.field = id;
 
     let timer;
     const render = async () => {
@@ -340,6 +338,11 @@
       timer = setTimeout(render, 250);
     });
     render();
+    // setupField 是異步的（要等 CKEditor ready），ui.js 直接找 DOM 會撲空，
+    // 所以完成時通知它來掛模式切換。
+    document.dispatchEvent(
+      new CustomEvent("ojmd:ready", { detail: { id, row, toolbar } }),
+    );
     return true;
   }
 
