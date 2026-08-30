@@ -660,8 +660,7 @@
   }
 
   /* ---------- 主流程 ---------- */
-  window.addEventListener("load", () => {
-    if (!/\/problem\/\d+\/edit/.test(location.pathname)) return;
+  function boot() {
     if (document.querySelector(".ojui")) return;
 
     const h2 = document.querySelector("h2");
@@ -766,5 +765,26 @@
       e.preventDefault();
       e.returnValue = "";
     });
+  }
+
+  window.addEventListener("load", () => {
+    if (!/\/problem\/\d+\/edit/.test(location.pathname)) return;
+
+    // CKEditor 的編輯區是 iframe。iframe 在 DOM 中被移動會重新載入、內部
+    // 參照失效，實例會整個炸掉（getDirection → getComputedStyle of undefined），
+    // 連帶 instanceReady 永遠不觸發、editor.js 的接管一直等不到。
+    // 所以等 editor.js 把 CKEditor 拆完再重建版面。
+    const live = window.CKEDITOR ? Object.keys(CKEDITOR.instances).length : 0;
+    if (!live) return boot();
+
+    let started = false;
+    const go = () => {
+      if (started) return;
+      started = true;
+      boot();
+    };
+    document.addEventListener("ojmd:done", go, { once: true });
+    // 保險：CKEditor 若初始化失敗，instanceReady 不會來，版面仍要出得來
+    setTimeout(go, 4000);
   });
 })();

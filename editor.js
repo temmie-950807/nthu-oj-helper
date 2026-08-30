@@ -365,6 +365,14 @@
     // 只有成功接管的欄位才會在送出時被轉換。某個欄位若接管失敗，
     // 它就維持原本的 CKEditor 行為，不會被我們寫壞。
     const active = new Set();
+    let pending = FIELDS.length;
+    const settle = () => {
+      if (--pending > 0) return;
+      // 通知 ui.js：CKEditor 已經全部拆完，現在搬 DOM 是安全的。
+      // CKEditor 的編輯區是 iframe，在 DOM 中被移動就會重新載入、內部參照
+      // 失效，實例會整個炸掉。
+      document.dispatchEvent(new CustomEvent("ojmd:done"));
+    };
     FIELDS.forEach((id) =>
       whenReady(id, (inst) => {
         try {
@@ -372,6 +380,7 @@
         } catch (err) {
           console.error("[OJ Helper] " + id + " 接管失敗", err);
         }
+        settle();
       }),
     );
 
