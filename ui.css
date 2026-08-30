@@ -961,3 +961,14 @@ body.ojui-page .container {
   padding-left: 20px;
   padding-right: 20px;
 }
+
+/* Bootswatch 對 h1–h6 直接指定了 font-family（不是 inherit），會蓋掉從
+   .ojui 繼承下來的 --sans。這裡用較高的 specificity 拿回來。 */
+.ojui h1,
+.ojui h2,
+.ojui h3,
+.ojui h4,
+.ojui h5,
+.ojui h6 {
+  font-family: var(--sans);
+}

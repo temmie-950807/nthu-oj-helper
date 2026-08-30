@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "7.2",
+  "version": "7.3",
   "description": "NTHU OJ 出題與刷題輔助：Edit Problem 介面改造、Markdown + LaTeX 出題、題目 zip 匯入匯出、批量提交、Status 頁增強",
   "content_scripts": [
     {
