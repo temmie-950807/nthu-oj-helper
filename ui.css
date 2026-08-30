@@ -947,10 +947,17 @@ body.ojui-page .navbar .active > a {
   border: none;
   padding: 0;
 }
+/* Bootstrap 的 panel 有寫死的白底與邊框，深色模式下會變成刺眼的白塊 */
+.ojui .panel,
+.ojui .panel-default,
+.ojui .panel-heading,
 .ojui .panel-body {
-  background: none;
+  background: transparent;
+  background-image: none;
   border: none;
+  box-shadow: none;
   padding: 0;
+  color: inherit;
 }
 
 /* DESIGN.md：內容最大寬 1400px。Bootstrap 3 的 .container 在各斷點寫死

@@ -47,6 +47,21 @@
       grid.before(tin, tout);
       grid.remove();
       console.warn("[OJ Helper] sample.js：搬動後 form owner 不正確，已還原版面");
+      return;
+    }
+
+    // 兩個 textarea 原本各自包在一個 Bootstrap .panel 裡（白底 + 「Sample
+    // Input」/「Sample Output」標題列）。grid 插在 sample_in 原位，等於被關進
+    // 第一個 panel，第二個 panel 則變成只剩標題的空殼。把 grid 提到卡片本體
+    // 底下，再清掉兩個 panel——標題已由 grid 內的 INPUT / OUTPUT 取代。
+    const panels = [...pane.querySelectorAll(".panel")];
+    if (panels.length) {
+      (grid.closest(".ojui-card-body") || pane).appendChild(grid);
+      panels.forEach((p) => p.remove());
+      // 再確認一次：這步又搬了一次 DOM
+      if (tin.form?.id !== "problem_info" || tout.form?.id !== "problem_info") {
+        console.error("[OJ Helper] sample.js：提出 panel 後 form owner 斷了");
+      }
     }
   });
 })();
