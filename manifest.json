@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "6.1",
+  "version": "6.2",
   "description": "NTHU OJ 出題與刷題輔助：Edit Problem 介面改造、Markdown + LaTeX 出題、題目 zip 匯入匯出、批量提交、Status 頁增強",
   "content_scripts": [
     {
@@ -9,13 +9,20 @@
         "*://140.114.86.166/problem/*",
         "*://acm.cs.nthu.edu.tw/problem/*"
       ],
-      "js": ["guard.js"],
+      "js": [
+        "guard.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["*://140.114.86.166/*", "*://acm.cs.nthu.edu.tw/*"],
-      "js": ["content.js"],
+      "matches": [
+        "*://140.114.86.166/*",
+        "*://acm.cs.nthu.edu.tw/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_end",
       "world": "MAIN"
     },
@@ -24,7 +31,11 @@
         "*://140.114.86.166/problem/*",
         "*://acm.cs.nthu.edu.tw/problem/*"
       ],
-      "css": ["ui.css"],
+      "css": [
+        "ui.css",
+        "tag.css",
+        "testcase.css"
+      ],
       "js": [
         "vendor/mathjax-config.js",
         "vendor/marked.min.js",
@@ -32,7 +43,9 @@
         "vendor/fflate.min.js",
         "editor.js",
         "transfer.js",
-        "ui.js"
+        "ui.js",
+        "tag.js",
+        "testcase.js"
       ],
       "run_at": "document_end",
       "world": "MAIN"

@@ -1,0 +1,79 @@
+/* ============================================================
+   NTHU OJ Helper — TestCase 分頁增強（testcase.js 專用）
+   token 沿用 ui.css 的 --accent / --hair / --muted …
+   全部關在 .ojui 底下，不外洩到站台其他頁面。
+   ============================================================ */
+
+/* ---- 批次套用列 ------------------------------------------------ */
+.ojui .ojtc-bulk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  background: var(--canvas);
+}
+.ojui .ojtc-bulk-label {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.ojui .ojtc-bulk .ojui-cellinp {
+  max-width: 72px;
+  border-color: var(--hair);
+  background: var(--surface);
+}
+.ojui .ojtc-bulk-msg {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* ---- 列號欄（等寬、灰、靠右） ---------------------------------- */
+.ojui .ojtc-num {
+  width: 38px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---- 檔案大小 -------------------------------------------------- */
+.ojui .ojtc-size {
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---- 缺配對提示 ------------------------------------------------ */
+.ojui .ojtc-missing {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+/* ---- 密度：列高壓到 ~34px，一屏看得到 12 筆 -------------------- */
+.ojui #testcase_table td {
+  padding: 4px 10px;
+}
+.ojui #testcase_table th {
+  padding: 6px 10px;
+}
+.ojui #testcase_table .ojui-cellinp {
+  padding: 3px 6px;
+}
+.ojui #testcase_table .ojui-btn {
+  padding: 5px 9px;
+  font-size: 12px;
+}

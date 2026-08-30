@@ -1,0 +1,93 @@
+/* ============================================================
+   tag.css — Tag 分頁的 chip 群
+   全部關在 .ojui 底下，不外洩到 OJ 其他頁面。
+   token 直接用 ui.css 已定義的變數，不重新宣告顏色。
+   輸入框、按鈕、alert 沿用 ui.css 既有規則，這裡只寫 chip 本身。
+   ============================================================ */
+
+/* tagTable 留著給 readiness 計數與 preview 送出用，只是不顯示。
+   Bootstrap 有可能覆蓋 UA 的 [hidden]，所以明確寫一條。 */
+.ojui .ojtag-mirror[hidden] {
+  display: none;
+}
+
+.ojui .ojtag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ojui .ojtag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 3px 3px 9px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--accent);
+}
+
+.ojui .ojtag-name {
+  font-weight: 500;
+}
+
+/* 破壞性動作：透明底，hover 才轉危險色 */
+.ojui .ojtag-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ojui .ojtag-x:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.ojui .ojtag-x:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(91, 45, 144, 0.35);
+}
+.ojui .ojtag-x:disabled {
+  cursor: default;
+  color: var(--muted);
+  background: transparent;
+}
+
+.ojui .ojtag-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 送出中：整區降透明度當 loading 提示，不做動畫 */
+.ojui .ojtag-busy .ojtag-chips {
+  opacity: 0.5;
+}
+
+.ojui .ojtag-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+}
+/* autocomplete 的 widget 外層寬度不定，讓它吃掉剩餘空間但別超過 460px
+   （與 ui.css 的 input max-width 對齊） */
+.ojui .ojtag-add > *:not(button):not([type="submit"]) {
+  flex: 1 1 auto;
+  min-width: 180px;
+  max-width: 460px;
+}
