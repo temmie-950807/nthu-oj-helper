@@ -85,8 +85,25 @@
         const c = document.createElement("canvas");
         c.width = Math.round(img.width * scale);
         c.height = Math.round(img.height * scale);
-        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-        resolve(c.toDataURL("image/png"));
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+
+        // 有透明像素就只能用 PNG，JPEG 會把透明背景填成黑色。
+        const px = ctx.getImageData(0, 0, c.width, c.height).data;
+        let hasAlpha = false;
+        for (let i = 3; i < px.length; i += 4) {
+          if (px[i] < 255) {
+            hasAlpha = true;
+            break;
+          }
+        }
+
+        const png = c.toDataURL("image/png");
+        if (hasAlpha) return resolve(png);
+        // 沒有透明就兩種都算、取小的。實測一張 900x600 的漸層圖
+        // PNG 要 777KB、JPEG 只要 57KB，差 13 倍。
+        const jpg = c.toDataURL("image/jpeg", 0.9);
+        resolve(jpg.length < png.length ? jpg : png);
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -94,6 +111,27 @@
       };
       img.src = url;
     });
+  }
+
+  // 原稿要藏進註解，但圖片的 data URI 已經完整存在渲染後的 HTML 裡了。
+  // 原稿再帶一份，還會被 base64 二次編碼多膨脹三分之一——同一張圖付兩次錢。
+  // 所以原稿只留佔位符，讀回來時再從 HTML 的 <img> 把 src 撈回去。
+  const IMG_RE = /!\[([^\]]*)\]\(data:[^)]+\)/g;
+  const PLACEHOLDER_RE = /@@IMG(\d+)@@/g;
+
+  function stripImages(md) {
+    let n = 0;
+    return md.replace(IMG_RE, (_, alt) => `![${alt}](@@IMG${n++}@@)`);
+  }
+
+  function restoreImages(md, stored) {
+    if (!PLACEHOLDER_RE.test(md)) return md;
+    const end = stored.indexOf(TAG_CLOSE);
+    const html = end === -1 ? stored : stored.slice(end + TAG_CLOSE.length);
+    const srcs = [...html.matchAll(/<img[^>]*src="(data:[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    return md.replace(PLACEHOLDER_RE, (m, i) => srcs[i] ?? m);
   }
 
   function pickImage(ta) {
@@ -106,10 +144,11 @@
       try {
         const uri = await shrink(f, 900);
         insert(ta, `![](${uri})`, "", "");
-        const kb = Math.round((uri.length * 3) / 4 / 1024);
-        if (kb > 300) {
+        const kb = Math.round(uri.length / 1024);
+        if (kb > 250) {
           alert(
-            `圖片內嵌後約 ${kb} KB，題目敘述欄位可能塞不下。\n建議先把圖片裁小或降低解析度再插入。`,
+            `這張圖內嵌後約 ${kb} KB，會整串寫進題目敘述欄位。\n` +
+              `若儲存後圖片顯示不完整，代表資料庫欄位塞不下，請先把圖裁小再插入。`,
           );
         }
       } catch (err) {
@@ -251,7 +290,9 @@
 
     // 舊題目沒有藏原稿，就把既有 HTML 當原稿用。Markdown 允許 inline HTML，
     // 所以原本的內容會原樣輸出，不會因為換模式就爛掉。
-    ta.value = extractMarkdown(stored) ?? stored;
+    const recovered = extractMarkdown(stored);
+    ta.value =
+      recovered === null ? stored : restoreImages(recovered, stored);
 
     // django-ckeditor 的外框是 inline-block，會把分欄寬度綁死
     const widget = ta.closest(".django-ckeditor-widget");
@@ -345,7 +386,9 @@
         // 再剝一次殼。萬一 textarea 裡是已轉換的內容（例如接管時序出過問題），
         // 直接拿去轉換會把整份輸出當成原稿再包一層，愈包愈深。
         const md = extractMarkdown(ta.value) ?? ta.value;
-        ta.value = `${TAG_OPEN}${b64e(md)}${TAG_CLOSE}\n${await typeset(mdToHtml(md))}`;
+        const html = await typeset(mdToHtml(md));
+        // 註解只存去掉圖片資料的精簡原稿，圖片本體單獨留在 html 那份
+        ta.value = `${TAG_OPEN}${b64e(stripImages(md))}${TAG_CLOSE}\n${html}`;
       }
       form.submit();
     });
