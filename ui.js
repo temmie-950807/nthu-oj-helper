@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "6.7"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+  const VERSION = "6.8"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
 
   const el = (t, c) => {
     const e = document.createElement(t);
@@ -684,6 +684,17 @@
         const thead = el("thead");
         thead.appendChild(headRow);
         table.prepend(thead);
+      }
+      // 原始表頭只有 5 個 th，但資料列有 in/out/time/memory 加三顆按鈕共 7 個
+      // td（再加上列號欄就是 8）。欄數對不上時表頭底色只會鋪到一半。
+      const bodyRow = [...table.querySelectorAll("tbody tr")].find((r) =>
+        r.querySelector("td"),
+      );
+      const hr = table.querySelector("thead tr");
+      if (hr && bodyRow) {
+        for (let i = hr.children.length; i < bodyRow.children.length; i++) {
+          hr.appendChild(el("th"));
+        }
       }
     }
 
