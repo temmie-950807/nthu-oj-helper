@@ -1,6 +1,8 @@
 (function () {
   "use strict";
 
+  const VERSION = "6.5"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+
   const el = (t, c) => {
     const e = document.createElement(t);
     if (c) e.className = c;
@@ -720,6 +722,7 @@
 
     document.body.classList.add("ojui-page");
     const root = el("div", "ojui");
+    root.dataset.ojVersion = VERSION;
     h2.before(root);
 
     root.appendChild(buildHeader(h2));
