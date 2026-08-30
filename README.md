@@ -52,7 +52,34 @@ OJ 原本用 CKEditor 編輯 HTML。這個功能把 Description / Input / Output
 
 OJ 未來可能會斷外網，貼外部圖床的連結那天會全部變破圖。所以圖片一律編碼進題目本體。代價是欄位會變大——單張圖超過 300KB 時會跳出提醒，建議先把圖裁小。
 
-### 4. 批量上傳測資（`/problem/<pid>/edit/?tab=testcase`）
+### 4. 題目 zip 匯入匯出（`/problem/<pid>/edit/`）
+
+編輯頁最上方有一列 **📦 題目搬移**，兩顆按鈕。整題打包成一個 zip，搬到另一台 OJ 或另一個題號。
+
+zip 裡長這樣，都是純文字，可以直接用編輯器改：
+
+```
+problem.json      題目名稱、擁有者、judge 設定、標籤、每筆測資的時間/記憶體限制
+description.md    Markdown 原稿（不是 HTML）
+input.md
+output.md
+sample/in.txt
+sample/out.txt
+testcases/001.in
+testcases/001.out
+testcases/002.in
+...
+```
+
+**匯出**：抓齊所有欄位、下載每一筆測資，打包後直接下載。
+
+**匯入**：選 zip → 跳出確認框告訴你會套用什麼、會刪掉幾筆測資 → 確認後自動填好文字欄位並重傳測資 → **最後你自己按 Save**（讓你有機會先檢查內容）。
+
+⚠️ **匯入會先刪光現有測資**，不可逆。確認框裡會寫清楚數量，看一眼再按。
+
+標籤不會自動套用（OJ 的標籤是另一套 API），匯入完成的訊息會列出來讓你手動加。
+
+### 5. 批量上傳測資（`/problem/<pid>/edit/?tab=testcase`）
 
 TestCase 分頁最上方會出現一個粉紅虛線拖曳區。
 
