@@ -1,9 +1,19 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "6.3",
+  "version": "6.4",
   "description": "NTHU OJ 出題與刷題輔助：Edit Problem 介面改造、Markdown + LaTeX 出題、題目 zip 匯入匯出、批量提交、Status 頁增強",
   "content_scripts": [
+    {
+      "matches": [
+        "*://140.114.86.166/*",
+        "*://acm.cs.nthu.edu.tw/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    },
     {
       "matches": [
         "*://140.114.86.166/problem/*",
@@ -50,5 +60,8 @@
       "run_at": "document_end",
       "world": "MAIN"
     }
-  ]
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
 }

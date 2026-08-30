@@ -279,7 +279,10 @@
       submitBtn.type = "submit";
       form.appendChild(submitBtn);
     }
-    submitBtn.className = "ojui-btn ojui-btn-primary";
+    // 用 add 而非覆寫：不確定 django-autocomplete-light 的 widget 有沒有在
+    // 這顆按鈕上掛自己的 hook class
+    submitBtn.classList.remove("btn", "btn-primary", "btn-default");
+    submitBtn.classList.add("ojui-btn", "ojui-btn-primary");
     submitBtn.dataset.ojtagLabel =
       submitBtn.tagName === "INPUT" ? submitBtn.value : submitBtn.textContent;
 

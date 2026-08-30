@@ -135,10 +135,9 @@
       const b = el("button", "ojui-btn " + (isSave ? "ojui-btn-primary" : "ojui-btn-ghost"));
       b.type = "button";
       b.innerHTML = `${n.value}<span class="ojui-kbd">${isSave ? "⌘S" : "⌘P"}</span>`;
-      b.addEventListener("click", () => {
-        if (isSave) isDirty = false;
-        n.click();
-      });
+      // 不在這裡清 isDirty：judge type 的確認框若被取消、或後端驗證退回，
+      // 頁面根本沒送出，dirty 旗標一旦清掉就再也擋不住誤關分頁。
+      b.addEventListener("click", () => n.click());
       if (isSave) b.id = "ojui-save";
       else b.id = "ojui-preview";
       actions.appendChild(b);
@@ -180,7 +179,9 @@
     });
     menu.addEventListener("click", (e) => e.stopPropagation());
 
-    // transfer.js 已經把匯出/匯入按鈕做好了，搬進選單重用，不重寫一份
+    // transfer.js 已經把匯出/匯入按鈕做好了，搬進選單重用，不重寫一份。
+    // 連同它的狀態列一起搬——那個 span 是匯出進度（「下載測資 3/10…」）與
+    // 錯誤訊息的唯一出口，留在原地隨 bar 被移除的話，整個匯出過程會毫無回饋。
     const bar = document.getElementById("oj-transfer-bar");
     if (bar) {
       [...bar.querySelectorAll("button")].forEach((b) => {
@@ -188,6 +189,12 @@
         menu.appendChild(b);
       });
       bar.querySelectorAll('input[type="file"]').forEach((i) => menu.appendChild(i));
+      const status = [...bar.querySelectorAll("span")].pop();
+      if (status) {
+        status.style.cssText =
+          "display:block;padding:6px 10px 4px;font-size:12px;color:var(--muted);";
+        menu.appendChild(status);
+      }
       bar.remove();
     }
 
@@ -417,12 +424,17 @@
   // 只列出與目前 judge_source 前綴相符的選項——後端 clean_judge_type 會擋
   // LOCAL 配 OTHER_* 這種組合，前端先擋掉才不會存到一半被拒。
   function buildRadioCards(sel, onChange) {
-    const box = el("div", "ojui-radios");
+    const box = el("div");
     box.id = "ojui-judge-type-cards";
+    // select 放在 box、卡片放在 list。重繪只清 list——早期版本清的是 box，
+    // 連 select 一起清掉，judge_type 就不會被送出，後端 clean_partial_judge_code
+    // 讀 cleaned_data['judge_type'] 直接 KeyError 500。
+    const list = el("div", "ojui-radios");
+    box.appendChild(list);
 
     const render = () => {
       const src = $n("judge_source")?.value || "LOCAL";
-      box.innerHTML = "";
+      list.innerHTML = "";
       [...sel.options]
         .filter((o) => o.value.startsWith(src))
         .forEach((o) => {
@@ -493,6 +505,14 @@
       if (c && c.name && c.type !== "submit") groups.set(c.name, { g, c });
     });
 
+    // 原站只在「非管理員」時用 inline JS 藏 owner，管理員是可以改的。
+    // 先記下原本可不可見，重建後照原樣，不要一律隱藏。
+    const ownerGroup = groups.get("owner")?.g;
+    const ownerWasHidden = ownerGroup
+      ? ownerGroup.style.display === "none" ||
+        getComputedStyle(ownerGroup).display === "none"
+      : true;
+
     const body = el("div", "ojui-card-body");
     const order = [
       "pname",
@@ -530,9 +550,8 @@
       g.remove();
     });
 
-    // owner 原本被 inline JS 藏起來，維持隱藏但保留欄位值
     const ownerRow = body.querySelector('[data-field="owner"]');
-    if (ownerRow) ownerRow.hidden = true;
+    if (ownerRow && ownerWasHidden) ownerRow.hidden = true;
 
     const card = el("div", "ojui-card");
     card.append(cardHead("info"), body);
@@ -625,16 +644,18 @@
       "<div><b>拖拉上傳會刪除下方全部既有測資。</b> 上傳前請先用右上角「題目搬移 → 匯出 zip」備份。</div>";
     pane.prepend(alert);
 
+    // 單位後綴改用 td 的 ::after 畫，不搬動 input。
+    // #add_testcase 那個 <form> 寫在 <tr> 裡是非法 HTML，parser 會把它插成
+    // 空元素、靠 form element pointer 幫後續 input 標上 form owner。一旦把
+    // input 搬進新的 <span>，「reset the form owner」會清掉 parser inserted
+    // flag，而 form 又不是它的祖先 → form owner 永久變成 null，Add Testcase
+    // 送出時就少了 time_limit / memory_limit。實測確認過。
     pane.querySelectorAll('input[type="number"]').forEach((inp) => {
-      const unit = inp.name === "memory_limit" ? "MB" : "sec";
-      if (inp.parentElement?.classList.contains("ojui-unit")) return;
+      const td = inp.closest("td");
+      if (!td || td.classList.contains("ojui-unit-td")) return;
       inp.classList.add("ojui-cellinp");
-      const w = el("span", "ojui-unit");
-      inp.before(w);
-      w.appendChild(inp);
-      const s = el("span", "ojui-unit-suffix");
-      s.textContent = unit;
-      w.appendChild(s);
+      td.classList.add("ojui-unit-td");
+      td.dataset.unit = inp.name === "memory_limit" ? "MB" : "sec";
     });
 
     const table = pane.querySelector("table");
@@ -650,12 +671,27 @@
       }
     }
 
+    // 只移除 Bootstrap 的外觀 class，保留 .update_btn / .reupload_btn /
+    // .del_testcase_btn ——那三個是 edit.js 委派 handler 的掛勾，整串覆寫
+    // className 會讓測資的 Update / Delete / ReUpload 全部靜默失效，連帶
+    // 讓 transfer.js 與 content.js 的「先清空舊測資」跳過刪除變成疊加。
     pane.querySelectorAll("button").forEach((b) => {
       const t = (b.textContent || "").trim();
-      if (!t || b.closest(".ojui-menu")) return;
-      b.className =
-        "ojui-btn ojui-btn-sm " +
-        (/delete/i.test(t) ? "ojui-btn-danger" : "ojui-btn-ghost");
+      if (!t || b.closest(".ojui-menu") || b.classList.contains("ojui-btn")) return;
+      b.classList.remove(
+        "btn",
+        "btn-primary",
+        "btn-danger",
+        "btn-info",
+        "btn-warning",
+        "btn-default",
+        "btn-success",
+      );
+      b.classList.add(
+        "ojui-btn",
+        "ojui-btn-sm",
+        /delete/i.test(t) ? "ojui-btn-danger" : "ojui-btn-ghost",
+      );
     });
   }
 
@@ -739,11 +775,23 @@
       clearTimeout(syncTimer);
       syncTimer = setTimeout(sync, 200);
     };
-    document.addEventListener("input", () => {
-      markDirty();
+    // 只有 #problem_info 內的變更算「未儲存」——Tag 與 TestCase 是各自
+    // 獨立送出的 AJAX，跟這張表單的存檔無關，不該讓離開警告誤跳。
+    // 但 readiness 兩邊都要跟著更新。
+    document.addEventListener("input", (e) => {
+      if (e.target?.closest?.("#problem_info")) markDirty();
       syncSoon();
     });
-    document.addEventListener("change", syncSoon);
+    document.addEventListener("change", (e) => {
+      if (e.target?.closest?.("#problem_info")) markDirty();
+      syncSoon();
+    });
+
+    const pForm = document.getElementById("problem_info");
+    // ui.js 是最後載入的，跑到這裡還沒被 preventDefault 就代表真的會送出
+    pForm?.addEventListener("submit", (e) => {
+      if (!e.defaultPrevented) pForm.dataset.ojSubmitting = "1";
+    });
 
     document.addEventListener("keydown", (e) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -761,7 +809,7 @@
     });
 
     window.addEventListener("beforeunload", (e) => {
-      if (!isDirty) return;
+      if (!isDirty || pForm?.dataset.ojSubmitting) return;
       e.preventDefault();
       e.returnValue = "";
     });

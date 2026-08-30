@@ -797,6 +797,27 @@ body.ojui-page .navbar .active > a {
   color: var(--muted);
 }
 
+/* 測資列的單位後綴畫在 td 上，不包 span——把 input 搬進新容器會清掉
+   parser inserted flag，#add_testcase 那幾個 input 的 form owner 會永久
+   斷掉（那個 <form> 寫在 <tr> 裡，不是 input 的祖先）。 */
+.ojui td.ojui-unit-td {
+  position: relative;
+}
+.ojui td.ojui-unit-td::after {
+  content: attr(data-unit);
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.ojui td.ojui-unit-td input[type="number"] {
+  padding-right: 38px;
+}
+
 /* ---- 破壞性提示（放在動作旁，不藏在說明裡） -------------------- */
 .ojui-alert {
   display: flex;

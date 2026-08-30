@@ -391,18 +391,45 @@
     // （form.submit() 不會重新觸發 submit 事件，不會無限迴圈）。
     form.addEventListener("submit", async (e) => {
       if (!active.size) return; // 一個欄位都沒接管成功就完全不介入
+      // edit.js 綁在 DOM-ready、比這裡早跑。它在 judge type 從 SPECIAL/PARTIAL
+      // 換掉時會問「會刪掉原本的 code」，使用者按取消時 jQuery 只做
+      // preventDefault + stopPropagation（不是 stopImmediatePropagation），
+      // 同一元素上的這個 listener 照樣會跑。而 form.submit() 會無視 canceled
+      // state 直接送出——不檢查的話，那個確認框等於裝飾品。
+      if (e.defaultPrevented) return;
       e.preventDefault();
+
+      // Preview 用 target="_blank"，當前分頁不會導航，textarea 會停在轉換後的
+      // 狀態。不還原的話：編輯區變成一坨 HTML、之後打的字會被下次送出丟掉。
+      const isPreview = form.getAttribute("target") === "_blank";
+      const snapshot = new Map();
+
       for (const id of active) {
         const ta = document.getElementById(id);
         if (!ta) continue;
-        // 再剝一次殼。萬一 textarea 裡是已轉換的內容（例如接管時序出過問題），
-        // 直接拿去轉換會把整份輸出當成原稿再包一層，愈包愈深。
-        const md = extractMarkdown(ta.value) ?? ta.value;
+        snapshot.set(id, ta.value);
+        const raw = ta.value;
+        // 剝殼後要把圖片補回來。只做 extractMarkdown 的話，拿到的是
+        // stripImages 過的 @@IMG0@@ 佔位符，轉換後會存成 <img src="@@IMG0@@">，
+        // 內嵌圖片全部變破圖且無法復原。
+        const md = restoreImages(extractMarkdown(raw) ?? raw, raw);
         const html = await typeset(mdToHtml(md));
         // 註解只存去掉圖片資料的精簡原稿，圖片本體單獨留在 html 那份
         ta.value = `${TAG_OPEN}${b64e(stripImages(md))}${TAG_CLOSE}\n${html}`;
       }
+
+      form.dataset.ojSubmitting = "1"; // 讓 ui.js 的離開警告放行
       form.submit();
+
+      if (isPreview) {
+        setTimeout(() => {
+          snapshot.forEach((v, id) => {
+            const ta = document.getElementById(id);
+            if (ta) ta.value = v;
+          });
+          delete form.dataset.ojSubmitting;
+        }, 0);
+      }
     });
   });
 })();
