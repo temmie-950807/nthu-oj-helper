@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "6.6"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+  const VERSION = "6.7"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
 
   const el = (t, c) => {
     const e = document.createElement(t);
@@ -646,7 +646,7 @@
       "<div><b>拖拉上傳會刪除下方全部既有測資。</b> 上傳前請先用右上角「題目搬移 → 匯出 zip」備份。</div>";
     pane.prepend(alert);
 
-    // 單位後綴改用 td 的 ::after 畫，不搬動 input。
+    // 單位後綴插在 input 之後當兄弟節點。關鍵是只插入、不搬動 input：
     // #add_testcase 那個 <form> 寫在 <tr> 裡是非法 HTML，parser 會把它插成
     // 空元素、靠 form element pointer 幫後續 input 標上 form owner。一旦把
     // input 搬進新的 <span>，「reset the form owner」會清掉 parser inserted
@@ -657,8 +657,22 @@
       if (!td || td.classList.contains("ojui-unit-td")) return;
       inp.classList.add("ojui-cellinp");
       td.classList.add("ojui-unit-td");
-      td.dataset.unit = inp.name === "memory_limit" ? "MB" : "sec";
+      const suffix = el("span", "ojui-unit-suffix");
+      suffix.textContent = inp.name === "memory_limit" ? "MB" : "sec";
+      inp.after(suffix);
     });
+
+    // content.js 的拖曳區是舊配色的 inline style，跟新設計語彙對不上
+    const dz = [...pane.querySelectorAll("div")].find((d) =>
+      /將所有的|拖拉到這裡/.test(d.textContent || ""),
+    );
+    if (dz && !dz.dataset.ojuiStyled) {
+      dz.dataset.ojuiStyled = "1";
+      dz.style.cssText =
+        "border:2px dashed var(--hair);border-radius:10px;background:var(--surface);" +
+        "padding:28px 20px;text-align:center;margin:0 0 14px;font-size:14px;" +
+        "color:var(--muted);cursor:pointer;";
+    }
 
     const table = pane.querySelector("table");
     if (table && !table.closest(".ojui-table-wrap")) {
