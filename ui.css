@@ -969,8 +969,10 @@ body.ojui-page .container {
   padding-right: 20px;
 }
 
-/* Bootswatch 對 h1–h6 直接指定了 font-family（不是 inherit），會蓋掉從
-   .ojui 繼承下來的 --sans。這裡用較高的 specificity 拿回來。 */
+/* Bootswatch 對 h1–h6 直接指定了 font-family 與 color（不是 inherit），
+   會蓋掉從 .ojui 繼承下來的 --sans 與 --ink——卡片標題因此變成 Bootswatch
+   的藍色 #317eac，而且深色模式下也不會跟著變。這裡用較高的 specificity
+   拿回來。 */
 .ojui h1,
 .ojui h2,
 .ojui h3,
@@ -978,4 +980,5 @@ body.ojui-page .container {
 .ojui h5,
 .ojui h6 {
   font-family: var(--sans);
+  color: inherit;
 }
