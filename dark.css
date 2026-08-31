@@ -9,31 +9,28 @@
    query，才有辦法讓手動切換覆蓋系統設定。
    （內層是 CSS Nesting，Chrome 112+ 支援） */
 html[data-oj-theme="dark"] {
-  .ojui,
-  body.ojui-page {
-    --canvas: #17151a;
-    --surface: #201d26;
-    --ink: #ece9f0;
-    --muted: #a49bb0;
-    --hair: #322d3b;
-    --line: #5a5268;
+  --canvas: #17151a;
+  --surface: #201d26;
+  --ink: #ece9f0;
+  --muted: #a49bb0;
+  --hair: #322d3b;
+  --line: #5a5268;
 
-    --accent: #a78bda;
-    /* 淺色模式 hover 是壓暗，深色要反過來提亮 */
-    --accent-hover: #bda6e6;
-    /* soft 底色改成主色低透明度疊加，用淺色實色會在暗底炸出亮斑 */
-    --accent-soft: rgba(167, 139, 218, 0.14);
+  --accent: #a78bda;
+  /* 淺色模式 hover 是壓暗，深色要反過來提亮 */
+  --accent-hover: #bda6e6;
+  /* soft 底色改成主色低透明度疊加，用淺色實色會在暗底炸出亮斑 */
+  --accent-soft: rgba(167, 139, 218, 0.14);
 
-    --ok: #3fbd7f;
-    --ok-soft: rgba(63, 189, 127, 0.14);
-    --gold: #d9a338;
-    --gold-soft: rgba(217, 163, 56, 0.14);
-    --danger: #f2766c;
-    --danger-soft: rgba(242, 118, 108, 0.14);
+  --ok: #3fbd7f;
+  --ok-soft: rgba(63, 189, 127, 0.14);
+  --gold: #d9a338;
+  --gold-soft: rgba(217, 163, 56, 0.14);
+  --danger: #f2766c;
+  --danger-soft: rgba(242, 118, 108, 0.14);
 
-    /* 原本 #231a2e 對 #17151a 只有 1.09:1，會跟頁面糊成一片 */
-    --nav: #3a2d52;
-  }
+  /* 原本 #231a2e 對 #17151a 只有 1.09:1，會跟頁面糊成一片 */
+  --nav: #3a2d52;
 
   /* ---- 以下都是 ui.css 寫死的顏色，不受變數控制 ---------------- */
 

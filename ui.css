@@ -3,35 +3,6 @@
    Token 依 DESIGN.md。樣式全部關在 .ojui / body.ojui-page 底下。
    ============================================================ */
 
-.ojui,
-body.ojui-page {
-  --canvas: #f7f6f4;
-  --surface: #ffffff;
-  --ink: #1c1a19;
-  --muted: #6b6664;
-  --hair: #e4e1dd;
-  --line: #d9d5d0;
-
-  --accent: #5b2d90;
-  --accent-hover: #4a2475;
-  --accent-soft: #f1ebf8;
-
-  --ok: #1a7f5a;
-  --ok-soft: #eaf6f1;
-  --gold: #a16207;
-  --gold-soft: #fdf5e3;
-  --danger: #b42318;
-  --danger-soft: #fdf1f0;
-
-  --nav: #231a2e;
-
-  /* 字體：Google Fonts 在斷網環境不可用，指定字體只在本機有裝時生效，
-     其餘退到系統中文字體。要保證一致就得把字體檔打包進 vendor/。 */
-  --sans: "IBM Plex Sans", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
-    system-ui, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
-    monospace;
-}
 
 .ojui {
   font-family: var(--sans);
