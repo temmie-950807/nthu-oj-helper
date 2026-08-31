@@ -16,17 +16,20 @@
   const $ = (n) => document.querySelector(`[name="${n}"]`);
   const pid = () => location.pathname.match(/\/problem\/(\d+)/)?.[1];
 
-  // 測資列：td0=.in 連結 td1=.out 連結 td2/td3=限制的 input
+  // 不用 td 的位置定位。testcase.js 會在每列最前面插一欄列號，靠 index
+  // 抓的話整排位移一格，inUrl 變成 undefined、整列被濾掉——匯出會靜默
+  // 變成「含 0 筆測資」，而使用者以為備份好了。改成直接找測資連結與
+  // 具名的限制欄位。
   function readTestcaseRows() {
     return [...document.querySelectorAll("#testcase table tr")]
-      .filter((r) => r.querySelector("td a"))
       .map((r) => {
-        const td = [...r.querySelectorAll("td")];
+        const links = [...r.querySelectorAll('a[href*="/problem/testcase/"]')];
         return {
-          inUrl: td[0].querySelector("a")?.getAttribute("href"),
-          outUrl: td[1].querySelector("a")?.getAttribute("href"),
-          time_limit: td[2]?.querySelector("input")?.value || "1",
-          memory_limit: td[3]?.querySelector("input")?.value || "32",
+          inUrl: links[0]?.getAttribute("href"),
+          outUrl: links[1]?.getAttribute("href"),
+          time_limit: r.querySelector('input[name="time_limit"]')?.value || "1",
+          memory_limit:
+            r.querySelector('input[name="memory_limit"]')?.value || "32",
         };
       })
       .filter((t) => t.inUrl && t.outUrl);
