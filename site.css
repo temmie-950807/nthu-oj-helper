@@ -331,3 +331,34 @@ body.ojui-site footer .navbar-text {
 body.ojui-page .ojui-theme-nav {
   display: none;
 }
+
+/* ---- 進度條（題目列表的 pass rate） ---------------------------- */
+/* 原本是 Bootstrap 的粗條 + 高飽和紅綠，在暖灰底上太吵。壓細、換成
+   token 的狀態色，讓它退回「資料」的位置而不是搶眼的裝飾。 */
+body.ojui-site .progress {
+  height: 6px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--hair);
+  box-shadow: none;
+  overflow: hidden;
+}
+body.ojui-site .progress-bar {
+  background-image: none;
+  box-shadow: none;
+  font-size: 0;
+  line-height: 6px;
+  transition: none;
+}
+body.ojui-site .progress-bar-success {
+  background: var(--ok);
+}
+body.ojui-site .progress-bar-danger {
+  background: var(--danger);
+}
+body.ojui-site .progress-bar-warning {
+  background: var(--gold);
+}
+body.ojui-site .progress-bar-info {
+  background: var(--accent);
+}
