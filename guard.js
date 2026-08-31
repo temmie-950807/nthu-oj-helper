@@ -40,6 +40,30 @@
   document.documentElement.dataset.ojTheme = dark ? "dark" : "light";
 })();
 
+// 蓋掉重建前的舊版面。
+//
+// 版面重建要等 load 事件（實測 ~1.6s，主要是 OJ 自己的資源）。在那之前
+// 使用者會先看到原本的 Bootstrap 頁面，然後畫面整個跳掉——閃爍比等待更
+// 讓人不安。這裡先把內容區藏起來，換上一行提示，ui.js 建好版面就掀開。
+//
+// 一定要有 fallback：ui.js 若因結構不符而 bail，內容不能永遠不出現。
+(function () {
+  "use strict";
+  if (!/\/problem\/\d+\/edit/.test(location.pathname)) return;
+
+  const style = document.createElement("style");
+  style.id = "oj-boot-veil";
+  style.textContent =
+    "body > .container { visibility: hidden; }" +
+    "body::before { content: '載入編輯器…'; position: fixed; top: 45%; left: 0; right: 0;" +
+    "text-align: center; font: 14px/1.5 system-ui, sans-serif; color: #6b6664; z-index: 1; }";
+  (document.head || document.documentElement).appendChild(style);
+
+  const lift = () => style.remove();
+  window.__ojLiftVeil = lift; // ui.js 建好版面後呼叫
+  setTimeout(lift, 4000); // 保險：ui.js 沒跑成功也要讓頁面能用
+})();
+
 // 阻止 CKEditor 啟動。
 //
 // editor.js 反正會把三個實例全部 destroy 換成 Markdown 編輯器，但在那之前

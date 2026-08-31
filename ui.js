@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "7.7"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+  const VERSION = "7.8"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
 
   const el = (t, c) => {
     const e = document.createElement(t);
@@ -765,6 +765,7 @@
     const content = document.querySelector(".tab-content");
     if (!h2 || !oldNav || !content) {
       console.warn("[OJ Helper] Edit 頁結構與預期不符，維持原樣");
+      window.__ojLiftVeil?.(); // 沒接管成功也要讓原本的頁面看得到
       return;
     }
 
@@ -886,6 +887,8 @@
       e.preventDefault();
       e.returnValue = "";
     });
+
+    window.__ojLiftVeil?.(); // 版面就緒，掀開 guard.js 蓋上的遮罩
   }
 
   window.addEventListener("load", () => {
