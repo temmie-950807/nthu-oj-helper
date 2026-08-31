@@ -61,18 +61,32 @@
     },
     set(v) {
       ck = v;
-      if (!v || typeof v.replace !== "function" || v.__ojPatched) return;
+      if (!v || typeof v !== "object" || v.__ojPatched) return;
       v.__ojPatched = true;
-      const orig = v.replace.bind(v);
-      v.__ojOriginalReplace = orig; // 留一條後路
-      v.replace = function (target) {
-        const el =
-          typeof target === "string" ? document.getElementById(target) : target;
-        // django-ckeditor 的 widget 把 textarea 藏起來等 CKEditor 接手，
-        // 這裡不接手了，就把它露出來讓 editor.js 直接用。
-        if (el && el.style) el.style.display = "";
-        return null;
-      };
+
+      // 不能在這裡檢查 v.replace：CKEditor 是先把物件賦給 window.CKEDITOR、
+      // 之後才掛上 replace 方法，此刻它還是 undefined。改成攔 replace 這個
+      // 屬性本身，不管何時被定義，讀到的都是我們的版本。
+      let real;
+      Object.defineProperty(v, "replace", {
+        configurable: true,
+        get() {
+          return function (target) {
+            const el =
+              typeof target === "string"
+                ? document.getElementById(target)
+                : target;
+            // django-ckeditor 把 textarea 藏起來等 CKEditor 接手。
+            // 這裡不接手，就把它露出來讓 editor.js 直接用。
+            if (el && el.style) el.style.display = "";
+            return null;
+          };
+        },
+        set(fn) {
+          real = fn; // 吃掉 CKEditor 自己的賦值，留一條後路
+          v.__ojOriginalReplace = fn;
+        },
+      });
     },
   });
 })();
