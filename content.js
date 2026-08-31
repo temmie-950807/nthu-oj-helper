@@ -13,23 +13,23 @@
       const panel = document.createElement("div");
       panel.id = PANEL_ID;
       panel.innerHTML = `
-                <div id="oj-panel-box" style="position: fixed; bottom: 20px; right: 20px; background: #fff; border: 2px solid #ea4c89; border-radius: 8px; padding: 15px 15px 22px; z-index: 999999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 320px; min-width: 240px; min-height: 120px; max-width: 92vw; max-height: 88vh; overflow: auto; font-family: sans-serif;">
-                    <h4 style="margin: 0 0 10px 0; color: #333; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">🚀 NTHU OJ Helper</h4>
+                <div id="oj-panel-box" class="ojui-float">
+                    <h4 class="ojui-float-title">批量提交</h4>
 
                     <div id="oj-batch-section" style="display: none;">
-                        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom: 5px;">1. 選擇或拖曳批量檔案：</label>
-                        <div id="oj-drop-zone" style="border: 2px dashed #ea4c89; border-radius: 6px; padding: 20px; text-align: center; margin-bottom: 10px; cursor: pointer; transition: background-color 0.2s;">
-                            <p style="margin: 0; font-size: 14px; font-weight: bold; color: #ea4c89; pointer-events: none;">📂 將檔案拖曳至此</p>
-                            <p style="margin: 5px 0 0 0; font-size: 12px; color: #888; pointer-events: none;">(或點擊選擇檔案)</p>
-                            <p id="oj-file-count" style="margin: 10px 0 0 0; font-size: 13px; color: #666; font-weight: bold; pointer-events: none;">尚未選擇檔案</p>
+                        <label class="ojui-float-label">1. 選擇或拖曳批量檔案</label>
+                        <div id="oj-drop-zone">
+                            <p class="ojui-dz-main">將檔案拖曳至此</p>
+                            <p class="ojui-dz-sub">或點擊選擇檔案</p>
+                            <p id="oj-file-count">尚未選擇檔案</p>
                             <input type="file" id="oj-batch-files" multiple style="display: none;" />
                         </div>
 
-                        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom: 5px;">2. 確認 Problem ID：</label>
-                        <input type="text" id="oj-batch-pid" class="form-control" style="width: 100%; margin-bottom: 10px; padding: 4px;" />
+                        <label class="ojui-float-label">2. 確認 Problem ID</label>
+                        <input type="text" id="oj-batch-pid" />
 
-                        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom: 5px;">3. 選擇上傳語言：</label>
-                        <select id="oj-batch-lang" style="width: 100%; margin-bottom: 10px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+                        <label class="ojui-float-label">3. 選擇上傳語言</label>
+                        <select id="oj-batch-lang">
                             <option value="AUTO">🤖 自動判斷 (依副檔名)</option>
                             <option value="C">C</option>
                             <option value="CPP">C++</option>
@@ -40,8 +40,8 @@
                             <option value="Python">Python</option>
                         </select>
 
-                        <button id="oj-batch-submit-btn" style="width: 100%; background: #ea4c89; color: #fff; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">執行批量上傳</button>
-                        <div id="oj-status-msg" style="margin-top: 10px; font-size: 12px; color: #666; font-weight: bold;">等待操作...</div>
+                        <button id="oj-batch-submit-btn" type="button">執行批量上傳</button>
+                        <div id="oj-status-msg">等待操作…</div>
                     </div>
 
                     <div id="oj-status-section" style="display: none;">
@@ -70,9 +70,7 @@
       // CSS 原生 resize 的把手固定在右下角，方向剛好相反，所以自己做。
       const grip = document.createElement("div");
       grip.title = "拖曳調整面板大小";
-      grip.style.cssText =
-        "position:absolute; top:0; left:0; width:16px; height:16px; cursor:nwse-resize;" +
-        "border-radius:6px 0 0 0; background:linear-gradient(135deg,#ea4c89 0 45%,transparent 45%);";
+      grip.className = "ojui-float-grip";
       box.appendChild(grip);
 
       const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
@@ -111,41 +109,25 @@
 
     function createTestCaseBadge(statusStr, index) {
       const badge = document.createElement("span");
-      badge.style.display = "inline-flex";
-      badge.style.alignItems = "center";
-      badge.style.justifyContent = "center";
-      badge.style.width = "24px";
-      badge.style.height = "24px";
-      badge.style.borderRadius = "4px";
-      badge.style.fontSize = "12px";
-      badge.style.fontWeight = "bold";
-      badge.style.cursor = "help";
-      badge.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
-
       badge.title = `Testcase ${index}: ${statusStr}`;
       const s = statusStr.toUpperCase();
-
+      let kind = "unknown";
+      let mark = "?";
       if (s.includes("ACCEPTED") && !s.includes("NOT")) {
-        badge.style.backgroundColor = "#e8f5e9";
-        badge.style.color = "#2e7d32";
-        badge.innerText = "✔";
+        kind = "ac";
+        mark = "\u2714";
       } else if (s.includes("WRONG ANSWER") || s.includes("NOT ACCEPTED")) {
-        badge.style.backgroundColor = "#ffebee";
-        badge.style.color = "#c62828";
-        badge.innerText = "✘";
+        kind = "wa";
+        mark = "\u2718";
       } else if (s.includes("RUNTIME ERROR")) {
-        badge.style.backgroundColor = "#fff3e0";
-        badge.style.color = "#ef6c00";
-        badge.innerText = "❗";
+        kind = "re";
+        mark = "!";
       } else if (s.includes("TIME LIMIT EXCEEDED")) {
-        badge.style.backgroundColor = "#e3f2fd";
-        badge.style.color = "#1565c0";
-        badge.innerText = "🕒";
-      } else {
-        badge.style.backgroundColor = "#f3e5f5";
-        badge.style.color = "#7b1fa2";
-        badge.innerText = "❔";
+        kind = "tle";
+        mark = "T";
       }
+      badge.className = "ojui-tc ojui-tc-" + kind;
+      badge.textContent = mark;
       return badge;
     }
 
@@ -334,8 +316,8 @@
       const table = document.querySelector(".table.table-striped.table-hover");
       if (!table) return;
 
-      injectUI();
-      document.getElementById("oj-status-section").style.display = "block";
+      // 這頁的增強是自動的（SID 換檔名、測資方塊），沒有任何要按的東西。
+      // 早期版本會浮一個「✅ 已啟動」的面板，純粹擋畫面，拿掉。
 
       const theadTr = table.querySelector("thead tr");
       if (theadTr && !document.getElementById("oj-ext-th-tc")) {
@@ -380,10 +362,7 @@
 
         // --- 處理 Testcases ---
         const tdTC = document.createElement("td");
-        tdTC.style.display = "flex";
-        tdTC.style.flexWrap = "wrap";
-        tdTC.style.gap = "6px";
-        tdTC.style.alignItems = "center";
+        tdTC.className = "ojui-tc-cell";
         tr.appendChild(tdTC);
 
         const titleHTML = tr.getAttribute("title");

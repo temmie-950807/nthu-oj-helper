@@ -362,3 +362,185 @@ body.ojui-site .progress-bar-warning {
 body.ojui-site .progress-bar-info {
   background: var(--accent);
 }
+
+/* ---- 表格的狀態列 ---------------------------------------------- */
+/* OJ 用 Bootstrap 的 .danger / .success 標記整列。原本的高飽和粉紅在
+   暖灰底上太搶眼，而且深色模式下會變成刺眼亮塊。 */
+body.ojui-site .table > tbody > tr.danger,
+body.ojui-site .table > tbody > tr.danger > td {
+  background: var(--danger-soft);
+}
+body.ojui-site .table > tbody > tr.success,
+body.ojui-site .table > tbody > tr.success > td {
+  background: var(--ok-soft);
+}
+body.ojui-site .table > tbody > tr.warning,
+body.ojui-site .table > tbody > tr.warning > td {
+  background: var(--gold-soft);
+}
+body.ojui-site .table > tbody > tr.info,
+body.ojui-site .table > tbody > tr.info > td {
+  background: var(--accent-soft);
+}
+
+/* ---- 測資狀態方塊（Status 頁） --------------------------------- */
+.ojui-tc-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.ojui-tc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: help;
+  user-select: none;
+}
+.ojui-tc-ac {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.ojui-tc-wa {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.ojui-tc-re {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+.ojui-tc-tle {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ojui-tc-unknown {
+  background: var(--hair);
+  color: var(--muted);
+}
+
+/* ---- 批量提交浮動面板（Submit 頁） ------------------------------ */
+.ojui-float {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999999;
+  width: 320px;
+  min-width: 240px;
+  min-height: 120px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow: auto;
+  padding: 14px 14px 20px;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  font-family: var(--sans);
+  color: var(--ink);
+}
+.ojui-float-title {
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--hair);
+}
+.ojui-float-label {
+  display: block;
+  margin: 0 0 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.ojui-float #oj-drop-zone {
+  padding: 18px 12px;
+  margin-bottom: 12px;
+  text-align: center;
+  border: 2px dashed var(--hair);
+  border-radius: 7px;
+  background: var(--canvas);
+  cursor: pointer;
+}
+.ojui-float #oj-drop-zone:hover {
+  border-color: var(--accent);
+}
+.ojui-dz-main {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  pointer-events: none;
+}
+.ojui-dz-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.ojui-float #oj-file-count {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.ojui-float input[type="text"],
+.ojui-float select {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 6px 9px;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.ojui-float input:focus,
+.ojui-float select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(91, 45, 144, 0.14);
+}
+.ojui-float #oj-batch-submit-btn {
+  width: 100%;
+  padding: 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.ojui-float #oj-batch-submit-btn:hover {
+  background: var(--accent-hover);
+}
+.ojui-float #oj-status-msg {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* 縮放把手在左上角：面板釘在螢幕右下，往左上拖才是變大的方向 */
+.ojui-float-grip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  border-radius: 9px 0 0 0;
+  background: linear-gradient(135deg, var(--accent) 0 42%, transparent 42%);
+  opacity: 0.5;
+}
+.ojui-float-grip:hover {
+  opacity: 1;
+}
