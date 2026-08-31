@@ -4,7 +4,11 @@
    底下第二段是 ui.css 裡寫死、不走變數，因此深色下必壞的幾條。
    ============================================================ */
 
-@media (prefers-color-scheme: dark) {
+/* 主題由 guard.js 在 document_start 決定並寫進 html[data-oj-theme]：
+   使用者手動選過就用選的，沒選過才跟隨系統。用屬性選擇器而非 media
+   query，才有辦法讓手動切換覆蓋系統設定。
+   （內層是 CSS Nesting，Chrome 112+ 支援） */
+html[data-oj-theme="dark"] {
   .ojui,
   body.ojui-page {
     --canvas: #17151a;

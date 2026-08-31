@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "7.5"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
+  const VERSION = "7.6"; // 寫進 .ojui[data-oj-version]，方便從頁面確認載入的是哪一版
 
   const el = (t, c) => {
     const e = document.createElement(t);
@@ -126,6 +126,7 @@
     dirtyEl.textContent = "未儲存";
     actions.appendChild(dirtyEl);
 
+    actions.appendChild(buildThemeToggle());
     actions.appendChild(buildMoveMenu(h2));
 
     // Preview / Save 代理到這裡。用 nativeInput.click() 而不是 form.submit()：
@@ -159,6 +160,38 @@
     rowEl.append(left, actions);
     head.appendChild(rowEl);
     return head;
+  }
+
+  // 亮暗切換。實際的主題狀態寫在 html[data-oj-theme]，由 guard.js 在
+  // document_start 先決定（使用者選過就用選的，沒選過跟隨系統），
+  // 這裡只負責翻轉並記住。
+  function buildThemeToggle() {
+    const b = el("button", "ojui-btn ojui-btn-quiet");
+    b.type = "button";
+    const paint = () => {
+      const dark = document.documentElement.dataset.ojTheme === "dark";
+      b.title = dark ? "切換為亮色" : "切換為暗色";
+      b.setAttribute("aria-label", b.title);
+      b.innerHTML = dark
+        ? svg(
+            '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+            'width="15" height="15"',
+          )
+        : svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', 'width="15" height="15"');
+    };
+    b.addEventListener("click", () => {
+      const next =
+        document.documentElement.dataset.ojTheme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.ojTheme = next;
+      try {
+        localStorage.setItem("oj_theme", next);
+      } catch (_) {
+        /* 存不了就只在這次瀏覽有效 */
+      }
+      paint();
+    });
+    paint();
+    return b;
   }
 
   function buildMoveMenu(h2) {
