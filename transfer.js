@@ -173,7 +173,9 @@
       `即將套用到題目 ${pid()}：\n\n` +
         `・題目名稱：${meta.fields?.pname ?? "(無)"}\n` +
         `・敘述 / 輸入 / 輸出、樣例 IO\n` +
-        `・測資 ${inNames.length} 筆，會先刪光現有的 ${existing} 筆\n` +
+        (inNames.length
+          ? `・測資 ${inNames.length} 筆，會先刪光現有的 ${existing} 筆\n`
+          : `・zip 裡沒有測資，現有的 ${existing} 筆保持不動\n`) +
         `・做完自動存檔（等同按下 Save）\n\n` +
         `測資刪除無法復原。確定要繼續嗎？`,
     );
@@ -211,8 +213,12 @@
       e.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    await deleteTestcases(status);
-    if (inNames.length) await uploadTestcases(files, inNames, meta, status);
+    // zip 裡沒測資就不動現有的。曾經有過匯出靜默漏抓測資的 bug，若在
+    // 這裡照著空 zip 把題目清空，使用者會連備份都沒有。
+    if (inNames.length) {
+      await deleteTestcases(status);
+      await uploadTestcases(files, inNames, meta, status);
+    }
 
     // 標籤是獨立的 AJAX，不隨表單送出，只能提醒。先講再存檔——存完頁面
     // 就跳走了，那時候才顯示等於沒顯示。
