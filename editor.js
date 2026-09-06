@@ -2,6 +2,9 @@
   "use strict";
 
   const FIELDS = ["id_description", "id_input", "id_output"];
+  const editors = new Map();
+  // transfer.js 匯出 .md 時要的是帶圖片的完整原稿，不是 textarea 裡的代號版
+  window.__ojMarkdown = (id) => editors.get(id)?.getMarkdown();
   // 原稿用 base64 藏在 HTML 註解裡。直接塞原文的話，內容只要出現 "-->"
   // 就會把註解提早關掉，後面的原稿變成可見文字。
   const TAG_OPEN = "<!--md:";
@@ -54,23 +57,24 @@
   // 留著會讓每條公式被畫兩次。
   // ===== 工具列 =====
 
-  function insert(ta, before, after, ph) {
-    const s = ta.selectionStart;
-    const e = ta.selectionEnd;
-    const sel = ta.value.slice(s, e) || ph || "";
-    ta.setRangeText(before + sel + after, s, e, "end");
-    ta.setSelectionRange(s + before.length, s + before.length + sel.length);
-    ta.focus();
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  function insert(ed, before, after, ph) {
+    const { from, to } = ed.view.state.selection.main;
+    const sel = ed.view.state.sliceDoc(from, to) || ph || "";
+    ed.view.dispatch({
+      changes: { from, to, insert: before + sel + after },
+      selection: {
+        anchor: from + before.length,
+        head: from + before.length + sel.length,
+      },
+    });
+    ed.view.focus();
   }
 
   // 標題、清單、引用這類語法要加在行首，不能包住選取範圍
-  function prefixLine(ta, prefix) {
-    const s = ta.selectionStart;
-    const at = ta.value.lastIndexOf("\n", s - 1) + 1;
-    ta.setRangeText(prefix, at, at, "end");
-    ta.focus();
-    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  function prefixLine(ed, prefix) {
+    const line = ed.view.state.doc.lineAt(ed.view.state.selection.main.from);
+    ed.view.dispatch({ changes: { from: line.from, insert: prefix } });
+    ed.view.focus();
   }
 
   // OJ 沒有圖片上傳端點，而且未來可能斷外網——外部圖床的連結那天會全部
@@ -113,28 +117,57 @@
     });
   }
 
-  // 原稿要藏進註解，但圖片的 data URI 已經完整存在渲染後的 HTML 裡了。
-  // 原稿再帶一份，還會被 base64 二次編碼多膨脹三分之一——同一張圖付兩次錢。
-  // 所以原稿只留佔位符，讀回來時再從 HTML 的 <img> 把 src 撈回去。
-  const IMG_RE = /!\[([^\]]*)\]\(data:[^)]+\)/g;
-  const PLACEHOLDER_RE = /@@IMG(\d+)@@/g;
+  // 原稿裡不放圖片本體，只放代號 @@IMGn@@，圖片存在 images[]。兩個理由：
+  //
+  // 1. 存檔時原稿要 base64 進 HTML 註解，圖片資料再編一次會多膨脹三分之一
+  //    ——同一張圖付兩次錢。渲染後的 HTML 那半已經有完整的 data URI 了。
+  // 2. 編輯區裡一張圖就是幾十 KB 的亂碼，把題目敘述整個淹掉。換成代號，
+  //    CodeMirror 才有辦法把那一小段畫成一個圖片方塊。
+  const TOKEN_RE = /@@IMG(\d+)@@/g;
+  // 一次掃過兩種寫法，編號才會等於文件順序——存檔後要靠這個順序從 HTML
+  // 把圖片撈回來對上代號。
+  const ANY_IMG_RE = /!\[([^\]]*)\]\((data:[^)\s]+)\)|<img\b[^>]*>/g;
 
-  function stripImages(md) {
-    let n = 0;
-    return md.replace(IMG_RE, (_, alt) => `![${alt}](@@IMG${n++}@@)`);
+  const escAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+
+  // 完整 Markdown -> { text: 代號版, images: [dataURI] }
+  function pack(md) {
+    const images = [];
+    const text = md.replace(ANY_IMG_RE, (tag, alt, uri) => {
+      if (uri !== undefined) {
+        const i = images.push(uri) - 1;
+        return `<img src="@@IMG${i}@@"${alt ? ` alt="${escAttr(alt)}"` : ""}>`;
+      }
+      // 已經是 <img>：只有內嵌的要收起來，外部連結原樣留著
+      const m = tag.match(/src="(data:[^"]+)"/);
+      if (!m) return tag;
+      const i = images.push(m[1]) - 1;
+      return tag.replace(m[1], `@@IMG${i}@@`);
+    });
+    return { text, images };
   }
 
-  function restoreImages(md, stored) {
-    if (!PLACEHOLDER_RE.test(md)) return md;
+  const unpack = (text, images) =>
+    text.replace(TOKEN_RE, (m, i) => images[i] ?? m);
+
+  // 舊版存下來的原稿用的是 Markdown 圖片語法 ![](@@IMG0@@)。統一成 <img>：
+  // 只有它帶得動 width，圖片方塊也只認這一種寫法。
+  const normalizeTokens = (t) =>
+    t.replace(
+      /!\[([^\]]*)\]\((@@IMG\d+@@)\)/g,
+      (_, alt, tok) =>
+        `<img src="${tok}"${alt ? ` alt="${escAttr(alt)}"` : ""}>`,
+    );
+
+  // 存下來的格式是 <!--md:base64(代號版原稿)-->\n<渲染後的 HTML>，
+  // 圖片本體只在 HTML 那半，照文件順序撈就對得上代號。
+  function dataUrisIn(stored) {
     const end = stored.indexOf(TAG_CLOSE);
     const html = end === -1 ? stored : stored.slice(end + TAG_CLOSE.length);
-    const srcs = [...html.matchAll(/<img[^>]*src="(data:[^"]*)"/g)].map(
-      (m) => m[1],
-    );
-    return md.replace(PLACEHOLDER_RE, (m, i) => srcs[i] ?? m);
+    return [...html.matchAll(/<img[^>]*src="(data:[^"]*)"/g)].map((m) => m[1]);
   }
 
-  function pickImage(ta) {
+  function pickImage(ed) {
     const inp = document.createElement("input");
     inp.type = "file";
     inp.accept = "image/*";
@@ -143,7 +176,7 @@
       if (!f) return;
       try {
         const uri = await shrink(f, 900);
-        insert(ta, `![](${uri})`, "", "");
+        ed.addImage(uri);
         const kb = Math.round(uri.length / 1024);
         if (kb > 250) {
           alert(
@@ -158,28 +191,230 @@
     inp.click();
   }
 
+  /* ===== CodeMirror 編輯器：把圖片代號畫成方塊 ===== */
+
+  const WIDGET_RE = /<img\b[^>]*src="@@IMG(\d+)@@"[^>]*>/g;
+  const widthOf = (tag) => {
+    const m = tag.match(/\bwidth="(\d+)"/);
+    return m ? +m[1] : null;
+  };
+
+  // 代號在整份文件裡唯一，直接全文找就好。題目敘述頂多幾 KB，不值得為了
+  // 省這一次掃描去維護一份會過期的位置表。
+  function tagOf(doc, idx) {
+    const m = new RegExp(`<img\\b[^>]*src="@@IMG${idx}@@"[^>]*>`).exec(
+      doc.toString(),
+    );
+    return m ? { from: m.index, to: m.index + m[0].length, tag: m[0] } : null;
+  }
+
+  function imageExtension(images) {
+    const { Decoration, WidgetType, ViewPlugin, EditorView } = CM6;
+
+    function setWidth(view, idx, w) {
+      const r = tagOf(view.state.doc, idx);
+      if (!r) return;
+      const tag = /\bwidth="\d+"/.test(r.tag)
+        ? r.tag.replace(/\bwidth="\d+"/, `width="${w}"`)
+        : r.tag.replace(/\s*>$/, ` width="${w}">`);
+      if (tag !== r.tag)
+        view.dispatch({ changes: { from: r.from, to: r.to, insert: tag } });
+    }
+
+    class ImgWidget extends WidgetType {
+      constructor(idx, width) {
+        super();
+        this.idx = idx;
+        this.width = width;
+      }
+      // 寬度沒變就不重建 DOM，否則每打一個字整張圖都會閃一下
+      eq(o) {
+        return o.idx === this.idx && o.width === this.width;
+      }
+      // 方塊內部的滑鼠事件交給我們自己處理，不要被編輯器當成選取
+      ignoreEvent() {
+        return true;
+      }
+      toDOM(view) {
+        const box = document.createElement("span");
+        box.className = "ojmd-img";
+        const img = document.createElement("img");
+        img.src = images[this.idx] || "";
+        const meta = document.createElement("span");
+        meta.className = "ojmd-img-meta";
+        const grip = document.createElement("span");
+        grip.className = "ojmd-img-grip";
+        grip.title = "拖曳調整寬度";
+        box.append(img, meta, grip);
+
+        const kb = Math.round((images[this.idx] || "").length / 1024);
+        const label = (w) =>
+          (w ? w + "px" : "原始大小") +
+          (img.naturalWidth ? ` · ${img.naturalWidth}×${img.naturalHeight}` : "") +
+          ` · ${kb} KB`;
+        // 沒有 width 屬性時照原圖大小顯示，但不讓它把編輯區撐爆。
+        // 標籤仍寫「原始大小」——輸出的 HTML 確實沒有 width。
+        const paint = (w) => {
+          box.style.width = (w || Math.min(img.naturalWidth || 240, 360)) + "px";
+          meta.textContent = label(w);
+        };
+        img.addEventListener("load", () => paint(this.width), { once: true });
+        img.addEventListener("error", () => {
+          meta.textContent = "圖片讀取失敗";
+        });
+        paint(this.width);
+
+        // 拖曳期間只改 DOM，放開才寫回文件——每移動一像素就 dispatch 一次
+        // 會把 undo 歷史塞滿幾百筆。
+        let startX = 0;
+        let cur = 0;
+        const onMove = (e) => {
+          cur = Math.max(40, Math.round(box.__w0 + (e.clientX - startX)));
+          box.style.width = cur + "px";
+          meta.textContent = label(cur);
+        };
+        const onUp = () => {
+          document.removeEventListener("pointermove", onMove);
+          document.removeEventListener("pointerup", onUp);
+          setWidth(view, this.idx, cur);
+        };
+        grip.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          startX = e.clientX;
+          box.__w0 = box.offsetWidth;
+          cur = box.__w0;
+          document.addEventListener("pointermove", onMove);
+          document.addEventListener("pointerup", onUp);
+        });
+        return box;
+      }
+    }
+
+    const build = (view) => {
+      const out = [];
+      const text = view.state.doc.toString();
+      WIDGET_RE.lastIndex = 0;
+      let m;
+      while ((m = WIDGET_RE.exec(text)))
+        out.push(
+          Decoration.replace({
+            widget: new ImgWidget(+m[1], widthOf(m[0])),
+          }).range(m.index, m.index + m[0].length),
+        );
+      return Decoration.set(out);
+    };
+
+    return ViewPlugin.fromClass(
+      class {
+        constructor(view) {
+          this.decorations = build(view);
+        }
+        update(u) {
+          if (u.docChanged) this.decorations = build(u.view);
+        }
+      },
+      {
+        decorations: (v) => v.decorations,
+        // 沒有 atomicRanges，方向鍵會一格一格走進被蓋掉的那串 <img ...>
+        // 文字裡，游標看起來卡在圖上不動。
+        provide: (plug) =>
+          EditorView.atomicRanges.of(
+            (v) => v.plugin(plug)?.decorations || Decoration.none,
+          ),
+      },
+    );
+  }
+
+  // textarea 留在表單裡當送出的來源，畫面上換成 CodeMirror。
+  // 兩邊靠 input 事件同步，syncing 旗標避免互相觸發打成迴圈。
+  function mountEditor(ta, packed) {
+    const {
+      EditorView,
+      keymap,
+      defaultKeymap,
+      history,
+      historyKeymap,
+      drawSelection,
+    } = CM6;
+    const images = packed.images;
+    const host = document.createElement("div");
+    host.className = "ojmd-input";
+
+    let syncing = false;
+    const view = new EditorView({
+      doc: packed.text,
+      parent: host,
+      extensions: [
+        history(),
+        drawSelection(),
+        EditorView.lineWrapping,
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        imageExtension(images),
+        EditorView.updateListener.of((u) => {
+          if (!u.docChanged) return;
+          syncing = true;
+          ta.value = view.state.doc.toString();
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+          syncing = false;
+        }),
+      ],
+    });
+
+    // 匯入 zip 是直接寫 ta.value 再發 input，那份內容帶著完整 data URI，
+    // 要重新打包才不會把 base64 灌進編輯器。
+    // 只有代號沒有 data URI 的（Preview 送出後的還原）不能重打包——那會
+    // 把 images 清成空陣列，圖片全部變破圖。
+    ta.addEventListener("input", () => {
+      if (syncing || ta.value === view.state.doc.toString()) return;
+      const p = /data:/.test(ta.value) ? pack(ta.value) : null;
+      if (p) {
+        images.length = 0;
+        images.push(...p.images);
+      }
+      const text = p ? p.text : ta.value;
+      syncing = true;
+      ta.value = text;
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+      });
+      syncing = false;
+    });
+
+    return {
+      view,
+      host,
+      images,
+      getMarkdown: () => unpack(view.state.doc.toString(), images),
+      addImage(uri) {
+        const idx = images.push(uri) - 1;
+        insert(this, `<img src="@@IMG${idx}@@">`, "", "");
+      },
+    };
+  }
+
   const TABLE_TPL =
     "\n| 欄位 A | 欄位 B |\n| --- | --- |\n| 內容 1 | 內容 2 |\n";
 
-  function buildToolbar(ta) {
+  function buildToolbar(ed, ta) {
     // null 代表分隔線，把功能相近的按鈕分組
     const items = [
-      ["B", "粗體", () => insert(ta, "**", "**", "粗體")],
-      ["I", "斜體", () => insert(ta, "*", "*", "斜體")],
-      ["H", "標題", () => prefixLine(ta, "## ")],
+      ["B", "粗體", () => insert(ed, "**", "**", "粗體")],
+      ["I", "斜體", () => insert(ed, "*", "*", "斜體")],
+      ["H", "標題", () => prefixLine(ed, "## ")],
       null,
-      ["•", "項目清單", () => prefixLine(ta, "- ")],
-      ["1.", "編號清單", () => prefixLine(ta, "1. ")],
+      ["•", "項目清單", () => prefixLine(ed, "- ")],
+      ["1.", "編號清單", () => prefixLine(ed, "1. ")],
       null,
-      ["🔗", "連結", () => insert(ta, "[", "](https://)", "文字")],
-      ["🖼", "插入圖片（縮圖後內嵌）", () => pickImage(ta)],
-      ["⊞", "表格", () => insert(ta, TABLE_TPL, "", "")],
+      ["🔗", "連結", () => insert(ed, "[", "](https://)", "文字")],
+      ["🖼", "插入圖片（縮圖後內嵌）", () => pickImage(ed)],
+      ["⊞", "表格", () => insert(ed, TABLE_TPL, "", "")],
       null,
-      ["<>", "行內程式碼", () => insert(ta, "`", "`", "code")],
-      ["▤", "程式碼區塊", () => insert(ta, "\n```\n", "\n```\n", "code")],
+      ["<>", "行內程式碼", () => insert(ed, "`", "`", "code")],
+      ["▤", "程式碼區塊", () => insert(ed, "\n```\n", "\n```\n", "code")],
       null,
-      ["$x$", "行內公式", () => insert(ta, "$", "$", "x^2")],
-      ["$$", "獨立公式", () => insert(ta, "\n$$\n", "\n$$\n", "\\sum_{i=1}^{n} i")],
+      ["$x$", "行內公式", () => insert(ed, "$", "$", "x^2")],
+      ["$$", "獨立公式", () => insert(ed, "\n$$\n", "\n$$\n", "\\sum_{i=1}^{n} i")],
     ];
 
     const bar = document.createElement("div");
@@ -302,15 +537,26 @@
     // 舊題目沒有藏原稿，就把既有 HTML 當原稿用。Markdown 允許 inline HTML，
     // 所以原本的內容會原樣輸出，不會因為換模式就爛掉。
     const recovered = extractMarkdown(stored);
-    ta.value =
-      recovered === null ? stored : restoreImages(recovered, stored);
+    const packed =
+      recovered === null
+        ? pack(stored)
+        : { text: normalizeTokens(recovered), images: dataUrisIn(stored) };
+    ta.value = packed.text;
 
     // django-ckeditor 的外框是 inline-block，會把版面寬度綁死
     const widget = ta.closest(".django-ckeditor-widget");
     if (widget) widget.style.cssText = "display:block;width:100%;";
 
+    // textarea 不再是編輯介面，但要留在表單裡——送出的內容是從它來的，
+    // transfer.js 的匯出、ui.js 的完成度也都讀它。
+    ta.style.display = "none";
+    ta.dataset.field = id;
+
+    const ed = mountEditor(ta, packed);
+    editors.set(id, ed);
+
     // 版面與外觀交給 ui.css，這裡只負責結構
-    const toolbar = buildToolbar(ta);
+    const toolbar = buildToolbar(ed, ta);
     ta.before(toolbar);
 
     const prev = document.createElement("div");
@@ -319,15 +565,12 @@
     const row = document.createElement("div");
     row.className = "ojmd-row";
     ta.before(row);
-    row.append(ta, prev);
-    ta.className = "ojmd-input";
-    ta.removeAttribute("style");
-    ta.dataset.field = id;
+    row.append(ed.host, prev);
 
     let timer;
     const render = async () => {
       try {
-        prev.innerHTML = await typeset(mdToHtml(ta.value));
+        prev.innerHTML = await typeset(mdToHtml(ed.getMarkdown()));
       } catch (err) {
         prev.innerHTML =
           '<span style="color:#c62828">預覽失敗：</span>' + String(err.message || err);
@@ -357,8 +600,14 @@
 
   window.addEventListener("load", () => {
     if (!/\/problem\/\d+\/edit/.test(location.pathname)) return;
-    if (typeof marked === "undefined" || typeof MathJax === "undefined") {
-      console.error("[OJ Helper] marked 或 MathJax 未載入，Markdown 模式停用");
+    if (
+      typeof marked === "undefined" ||
+      typeof MathJax === "undefined" ||
+      typeof CM6 === "undefined"
+    ) {
+      console.error(
+        "[OJ Helper] marked / MathJax / CodeMirror 未載入，Markdown 模式停用",
+      );
       return;
     }
 
@@ -406,16 +655,17 @@
 
       for (const id of active) {
         const ta = document.getElementById(id);
-        if (!ta) continue;
+        const ed = editors.get(id);
+        if (!ta || !ed) continue;
         snapshot.set(id, ta.value);
-        const raw = ta.value;
-        // 剝殼後要把圖片補回來。只做 extractMarkdown 的話，拿到的是
-        // stripImages 過的 @@IMG0@@ 佔位符，轉換後會存成 <img src="@@IMG0@@">，
-        // 內嵌圖片全部變破圖且無法復原。
-        const md = restoreImages(extractMarkdown(raw) ?? raw, raw);
+        const md = ed.getMarkdown();
         const html = await typeset(mdToHtml(md));
+        // 重新打包一次，代號才會照文件順序編號。編輯過程中插入的圖片是
+        // 依插入順序拿號碼，直接存下去的話，重新載入時從 HTML 依文件順序
+        // 撈回來的圖片會對到錯的代號，整批圖互換位置。
+        const repacked = pack(md);
         // 註解只存去掉圖片資料的精簡原稿，圖片本體單獨留在 html 那份
-        ta.value = `${TAG_OPEN}${b64e(stripImages(md))}${TAG_CLOSE}\n${html}`;
+        ta.value = `${TAG_OPEN}${b64e(repacked.text)}${TAG_CLOSE}\n${html}`;
       }
 
       form.dataset.ojSubmitting = "1"; // 讓 ui.js 的離開警告放行

@@ -228,6 +228,7 @@ body.ojui-site label {
 }
 
 /* ---- 容器類 ---------------------------------------------------- */
+body.ojui-site .jumbotron,
 body.ojui-site .well,
 body.ojui-site .panel,
 body.ojui-site .panel-default {

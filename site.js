@@ -6,8 +6,22 @@
 
   const start = () => {
     document.body.classList.add("ojui-site");
+    dropTestcaseNoise();
     addThemeButton();
   };
+
+  // OJ 每動一筆測資就發一則訊息（problem/views.py:245「testcase N saved」、
+  // :294「testcase N deleted」），而 message.html 把每則都畫成一整條置中的
+  // <h3> 橫幅。匯入 20 筆測資就是 40 條，整個題目被推到螢幕外。
+  // 這些訊息沒有資訊量——測資表格本身就是結果。整批拿掉，其他訊息
+  //（例如 problem N edited，那是存檔成功的確認）留著。
+  function dropTestcaseNoise() {
+    document.querySelectorAll(".alert-dismissible").forEach((a) => {
+      const h = a.querySelector("h3");
+      if (h && /^testcase\s+\d+\s+(saved|deleted)$/i.test(h.textContent.trim()))
+        a.remove();
+    });
+  }
 
   function addThemeButton() {
     if (document.querySelector(".ojui-theme-nav")) return;
