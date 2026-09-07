@@ -1,0 +1,104 @@
+/* ============================================================
+   比賽搬移面板。只出現在 editContest.html 那個模板
+   （/contest/new/ 與 /contest/edit/<cid>/）。全部走 token。
+   ============================================================ */
+
+.ojct-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+}
+.ojct-status {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ojct-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.ojct-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ojct-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ojct-btn-go {
+  margin-top: 10px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.ojct-btn-go:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: #fff;
+}
+.ojct-link {
+  margin-left: 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ojct-plan {
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.ojct-plan-head {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ojct-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ojct-table th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--hair);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.ojct-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--hair);
+  vertical-align: middle;
+}
+.ojct-table select {
+  max-width: 260px;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.ojct-hint {
+  margin-left: 8px;
+  color: var(--gold);
+  font-size: 11px;
+}
