@@ -260,7 +260,11 @@
         };
         img.addEventListener("load", () => paint(this.width), { once: true });
         img.addEventListener("error", () => {
-          meta.textContent = "圖片讀取失敗";
+          // images[] 沒有這一格，通常是從別處貼進來的舊代號——那邊的圖片
+          // 沒有跟著過來。講清楚是哪一種，不然只看到「讀取失敗」很難查。
+          meta.textContent = images[this.idx]
+            ? "圖片讀取失敗"
+            : "圖片遺失：這個代號在本頁沒有對應的圖";
         });
         paint(this.width);
 
@@ -340,6 +344,64 @@
     const images = packed.images;
     const host = document.createElement("div");
     host.className = "ojmd-input";
+    let ed; // 剪貼簿 handler 要用，但它們只在使用者操作時才跑，那時已經指派好了
+
+    // 把敘述整段複製到另一題（甚至另一台 OJ）是常用動作，但文件裡放的是
+    // @@IMGn@@ ——只在這一頁有意義的代號。照原樣貼過去，對方的 images[]
+    // 沒有那一格，畫面上就是一個載不出圖的空框。
+    // 所以剪貼簿一律放還原成 data URI 的版本，貼進來時再收回代號。
+    //
+    // 一定要走 CodeMirror 的 domEventHandlers，不能自己 addEventListener：
+    // 事件由內往外冒泡，CodeMirror 綁在裡層的 .cm-content 上，等冒到外面
+    // 才 preventDefault 已經來不及——它已經先把原文貼進去了，結果是同一段
+    // 內容出現兩份（一份原始 base64、一份收成代號）。
+    const putClipboard = (e, v) => {
+      const { from, to } = v.state.selection.main;
+      if (from === to || !e.clipboardData) return false;
+      e.clipboardData.setData(
+        "text/plain",
+        unpack(v.state.sliceDoc(from, to), images),
+      );
+      e.preventDefault();
+      return true;
+    };
+
+    const takePaste = (e, v) => {
+      const cd = e.clipboardData;
+      if (!cd) return false;
+
+      // 直接貼一張圖。CodeMirror 只讀 text/plain，所以原本按 Cmd+V 完全
+      // 沒反應。這裡先攔下來，縮圖是非同步的，等它好了再插入。
+      const file = [...(cd.files || [])].find((f) =>
+        (f.type || "").startsWith("image/"),
+      );
+      if (file) {
+        e.preventDefault();
+        shrink(file, 900).then(
+          (uri) => ed.addImage(uri),
+          (err) => alert("圖片貼上失敗：" + err.message),
+        );
+        return true;
+      }
+
+      const text = cd.getData("text/plain");
+      if (!text || !/data:image\//.test(text)) return false; // 純文字交給 CodeMirror
+      e.preventDefault();
+      const p = pack(text);
+      // pack 一律從 0 開始編號，接到現有 images 後面要整批平移
+      const base = images.length;
+      images.push(...p.images);
+      const shifted = p.text.replace(
+        TOKEN_RE,
+        (_, i) => `@@IMG${base + Number(i)}@@`,
+      );
+      const { from, to } = v.state.selection.main;
+      v.dispatch({
+        changes: { from, to, insert: shifted },
+        selection: { anchor: from + shifted.length },
+      });
+      return true;
+    };
 
     let syncing = false;
     const view = new EditorView({
@@ -351,6 +413,17 @@
         EditorView.lineWrapping,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         imageExtension(images),
+        EditorView.domEventHandlers({
+          copy: putClipboard,
+          cut: (e, v) => {
+            // preventDefault 之後 CodeMirror 不會自己刪，得補上
+            const { from, to } = v.state.selection.main;
+            if (!putClipboard(e, v)) return false;
+            v.dispatch({ changes: { from, to, insert: "" } });
+            return true;
+          },
+          paste: takePaste,
+        }),
         EditorView.updateListener.of((u) => {
           if (!u.docChanged) return;
           syncing = true;
@@ -381,7 +454,7 @@
       syncing = false;
     });
 
-    return {
+    ed = {
       view,
       host,
       images,
@@ -391,6 +464,8 @@
         insert(this, `<img src="@@IMG${idx}@@">`, "", "");
       },
     };
+
+    return ed;
   }
 
   const TABLE_TPL =
