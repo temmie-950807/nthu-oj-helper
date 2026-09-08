@@ -86,7 +86,9 @@
     });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `problem-${pid()}-${(meta.fields.pname || "untitled").replace(/[^\w\-]/g, "_")}.zip`;
+    // 只擋掉檔名不能用的字元。原本用 [^\w-]，而 \w 是 ASCII-only，中文題名
+    // 會被整串濾成 ____，下載下來認不出是哪一題。
+    a.download = `problem-${pid()}-${(meta.fields.pname || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_")}.zip`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     status(`✅ 已匯出，含 ${rows.length} 筆測資`);

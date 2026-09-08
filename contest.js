@@ -75,7 +75,7 @@
     };
   }
 
-  async function exportContest(status) {
+  async function exportContest(status, statementOnly) {
     const sel = document.getElementById("id_problem");
     const pids = [...(sel?.options || [])]
       .filter((o) => o.selected)
@@ -89,6 +89,9 @@
         format: FORMAT,
         source: location.origin,
         src_cid: Number(CID),
+        // 只帶敘述的包，匯入端要靠這個旗標決定「不要碰測資」。不能改看
+        // testcases 是不是空的——那跟「這題本來就沒有測資，請清空」分不出來。
+        statement_only: !!statementOnly,
         problems: [],
       },
       readContestForm(),
@@ -108,9 +111,24 @@
       }
       const p = readProblem(doc);
       const dir = `problems/${pad(meta.problems.length + 1)}`;
+      // 敘述永遠要帶。圖片是以 data URI 內嵌在這三份原文裡的，所以只要原樣
+      // 搬走，圖片就跟著走，不需要另外處理附件。
       MD_FIELDS.forEach((n) => {
         files[`${dir}/${n}.raw`] = enc(p.raw[n]);
       });
+
+      if (statementOnly) {
+        files[`${dir}/problem.json`] = enc(
+          JSON.stringify(
+            { src_pid: Number(pid), fields: { pname: p.fields.pname } },
+            null,
+            2,
+          ),
+        );
+        meta.problems.push(dir.replace("problems/", ""));
+        continue;
+      }
+
       files[`${dir}/sample/in.txt`] = enc(p.sample_in);
       files[`${dir}/sample/out.txt`] = enc(p.sample_out);
 
@@ -153,12 +171,18 @@
     });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `contest-${CID}-${(meta.cname || "untitled").replace(/[^\w\-]/g, "_")}.zip`;
+    // 只擋掉檔名不能用的字元。原本用 [^\w-]，而 \w 是 ASCII-only，
+    // 中文比賽名會被整串濾成 ____，檔案下載下來認不出是哪一場。
+    a.download =
+      `contest-${CID}-${(meta.cname || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_")}` +
+      (statementOnly ? "-statement" : "") +
+      ".zip";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 
     status(
       `✅ 已匯出 ${meta.problems.length} 題` +
+        (statementOnly ? "（僅敘述）" : "") +
         (failed.length ? `，跳過 ${failed.length} 題：${failed.join("、")}` : ""),
     );
   }
@@ -195,8 +219,12 @@
       MD_FIELDS.forEach((n) => {
         p.raw[n] = dec(files[`${base}/${n}.raw`] || new Uint8Array());
       });
-      p.sample_in = dec(files[`${base}/sample/in.txt`] || new Uint8Array());
-      p.sample_out = dec(files[`${base}/sample/out.txt`] || new Uint8Array());
+      // 只帶敘述的包裡沒有 sample。留成 undefined，讓 fillProblem 知道
+      //「這一項不要動」，而不是把目標站的範例洗成空字串。
+      const si = files[`${base}/sample/in.txt`];
+      const so = files[`${base}/sample/out.txt`];
+      if (si) p.sample_in = dec(si);
+      if (so) p.sample_out = dec(so);
       return p;
     });
     return { meta, problems };
@@ -225,6 +253,10 @@
 
   // 把內容寫進題目。走它自己的編輯表單，欄位與 owner 都從那頁現讀，
   // 免得漏掉哪個必填欄位讓表單驗證整個退回。
+  //
+  // 先把目標站現有的值整份抄下來當底，再用 zip 裡真的有的欄位蓋掉。
+  // 「只帶敘述」的包才不會把 judge 設定與範例 IO 洗成空字串——那些欄位
+  // 是必填，送空的不是被驗證退回就是真的被存成空值。
   async function fillProblem(pid, p) {
     const doc = await fetchDoc(`/problem/${pid}/edit/`);
     const token = $("csrfmiddlewaretoken", doc)?.value || csrf();
@@ -232,14 +264,27 @@
     body.set("csrfmiddlewaretoken", token);
     // owner 用目標站現有的值（就是剛剛建立題目的人），不要沿用來源站的 pk
     body.set("owner", $("owner", doc)?.value || "");
-    Object.entries(p.fields).forEach(([k, v]) => {
-      if (k === "visible") return;
-      if (v !== undefined && v !== null) body.set(k, v);
+    META_FIELDS.forEach((n) => body.set(n, $(n, doc)?.value ?? ""));
+    if ($("visible", doc)?.checked) body.set("visible", "on");
+    MD_FIELDS.forEach((n) =>
+      body.set(n, doc.getElementById("id_" + n)?.value ?? ""),
+    );
+    body.set("sample_in", $("sample_in", doc)?.value ?? "");
+    body.set("sample_out", $("sample_out", doc)?.value ?? "");
+
+    Object.entries(p.fields || {}).forEach(([k, v]) => {
+      if (k === "visible" || v === undefined || v === null) return;
+      body.set(k, v);
     });
-    if (p.fields.visible) body.set("visible", "on");
-    MD_FIELDS.forEach((n) => body.set(n, p.raw[n] || ""));
-    body.set("sample_in", p.sample_in || "");
-    body.set("sample_out", p.sample_out || "");
+    if (p.fields && "visible" in p.fields) {
+      body.delete("visible");
+      if (p.fields.visible) body.set("visible", "on");
+    }
+    MD_FIELDS.forEach((n) => {
+      if (p.raw[n] !== undefined) body.set(n, p.raw[n]);
+    });
+    if (p.sample_in !== undefined) body.set("sample_in", p.sample_in);
+    if (p.sample_out !== undefined) body.set("sample_out", p.sample_out);
 
     const res = await fetch(`/problem/${pid}/edit/`, {
       method: "POST",
@@ -405,7 +450,17 @@
     });
 
     box.append(label);
-    if (CID) box.append(mkBtn("匯出 zip", exportContest));
+    if (CID) {
+      const only = document.createElement("label");
+      only.className = "ojct-only";
+      only.title =
+        "只匯出題名與 description / input / output，不含測資、範例 IO、" +
+        "judge 設定與標籤。內嵌的圖片是 data URI，跟在敘述裡一起走。";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      only.append(cb, document.createTextNode("只帶題目敘述"));
+      box.append(mkBtn("匯出 zip", (s) => exportContest(s, cb.checked)), only);
+    }
     box.append(mkBtn("匯入 zip", async () => picker.click()), picker, status);
     form.prepend(box);
   }
@@ -429,24 +484,32 @@
 
     const head = document.createElement("div");
     head.className = "ojct-plan-head";
-    head.textContent = `${meta.cname}（來自 ${meta.source}，${problems.length} 題）`;
+    head.textContent =
+      `${meta.cname}（來自 ${meta.source}，${problems.length} 題` +
+      (meta.statement_only ? "，只帶敘述" : "") +
+      "）";
     plan.appendChild(head);
 
     const table = document.createElement("table");
     table.className = "ojct-table";
     table.innerHTML =
-      "<tr><th>來源題目</th><th>測資</th><th>目標站要怎麼做</th></tr>";
+      "<tr><th>來源題目</th><th>帶了什麼</th><th>目標站要怎麼做</th></tr>";
+    const overwrite = meta.statement_only ? "只覆蓋敘述" : "會覆蓋內容";
     const rows = problems.map((p) => {
       const tr = document.createElement("tr");
       const same = byName.get(p.fields.pname) || [];
       const sel = document.createElement("select");
       sel.innerHTML =
         `<option value="new">新建一題</option>` +
-        same.map((pid) => `<option value="${pid}">重用 #${pid}（會覆蓋內容）</option>`).join("");
+        same
+          .map((pid) => `<option value="${pid}">重用 #${pid}（${overwrite}）</option>`)
+          .join("");
       const nameTd = document.createElement("td");
       nameTd.textContent = p.fields.pname;
       const tcTd = document.createElement("td");
-      tcTd.textContent = `${(p.testcases || []).length} 筆`;
+      tcTd.textContent = meta.statement_only
+        ? "題名 + 敘述"
+        : `敘述 + 範例 + ${(p.testcases || []).length} 筆測資`;
       const actTd = document.createElement("td");
       actTd.appendChild(sel);
       if (same.length) {
@@ -491,8 +554,12 @@
       }
       status(`${label} 寫入內容…`);
       await fillProblem(pid, p);
-      await replaceTestcases(pid, p, files, status, label);
-      await addTags(pid, p.tags);
+      // 只帶敘述的包完全不碰測資與標籤。特別是測資：replaceTestcases 會
+      // 先清空再上傳，這裡若照跑，重用既有題目等於把它的測資全刪光。
+      if (!meta.statement_only) {
+        await replaceTestcases(pid, p, files, status, label);
+        await addTags(pid, p.tags);
+      }
       pids.push(pid);
     }
     status("建立比賽…");
