@@ -52,11 +52,13 @@
       if (e) meta.fields[n] = e.value;
     });
 
-    // 這裡讀到的是 Markdown 原稿（editor.js 已把 textarea 換成原稿），
-    // 所以 zip 裡的 .md 是可以直接用文字編輯器改的。
+    // zip 裡的 .md 要是可以直接用文字編輯器改的完整原稿。textarea 裡存的
+    // 是圖片代號版（@@IMG0@@），直接匯出的話圖片會整批遺失，所以跟
+    // editor.js 要組好的版本。
     MD_FIELDS.forEach((n) => {
-      const e = document.getElementById("id_" + n);
-      files[n + ".md"] = enc(e ? e.value : "");
+      const id = "id_" + n;
+      const e = document.getElementById(id);
+      files[n + ".md"] = enc(window.__ojMarkdown?.(id) ?? (e ? e.value : ""));
     });
     files["sample/in.txt"] = enc($("sample_in")?.value || "");
     files["sample/out.txt"] = enc($("sample_out")?.value || "");
@@ -84,29 +86,41 @@
     });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `problem-${pid()}-${(meta.fields.pname || "untitled").replace(/[^\w\-]/g, "_")}.zip`;
+    // 只擋掉檔名不能用的字元。原本用 [^\w-]，而 \w 是 ASCII-only，中文題名
+    // 會被整串濾成 ____，下載下來認不出是哪一題。
+    a.download = `problem-${pid()}-${(meta.fields.pname || "untitled").replace(/[\\/:*?"<>|\s]+/g, "_")}.zip`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     status(`✅ 已匯出，含 ${rows.length} 筆測資`);
   }
 
-  async function replaceTestcases(files, inNames, meta, status) {
-    const csrf = document.querySelector(
-      'input[name="csrfmiddlewaretoken"]',
-    )?.value;
+  const csrfToken = () =>
+    document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+
+  // 不能用 .del_testcase_btn.click()。edit.js 的 handler 在 AJAX 成功後會做
+  // window.location.href = '…/edit/?tab=testcase'，第一筆刪完頁面就被導走，
+  // 剛寫進表單的敘述 / 輸入 / 輸出全部蒸發，而匯入流程也從中間斷掉。
+  // 改成自己送同一支 DELETE，少了那行導航，其餘完全一樣。
+  async function deleteTestcases(status) {
+    const csrf = csrfToken();
     if (!csrf) throw new Error("找不到 CSRF Token");
-
-    const del = document.querySelectorAll(".del_testcase_btn");
-    if (del.length) {
-      status(`刪除現有 ${del.length} 筆測資…`);
-      // 頁面自己的刪除確認框。腳本跑在 MAIN world，覆寫才吃得到。
-      const orig = window.confirm;
-      window.confirm = () => true;
-      del.forEach((b) => b.click());
-      window.confirm = orig;
-      await new Promise((r) => setTimeout(r, 2500));
+    const rows = [...document.querySelectorAll("#testcase table tr[data-target]")];
+    for (const [i, row] of rows.entries()) {
+      status(`刪除舊測資 ${i + 1}/${rows.length}…`);
+      const tid = row.getAttribute("data-target");
+      const res = await fetch(`/problem/${pid()}/testcase/${tid}/delete/`, {
+        method: "DELETE",
+        headers: { "X-CSRFToken": csrf },
+        credentials: "same-origin",
+      });
+      if (!res.ok) throw new Error(`刪除測資 ${tid} 失敗（HTTP ${res.status}）`);
+      row.remove(); // 讓表格與 ui.js 的完成度即時反映，不必等重整
     }
+  }
 
+  async function uploadTestcases(files, inNames, meta, status) {
+    const csrf = csrfToken();
+    if (!csrf) throw new Error("找不到 CSRF Token");
     const byName = new Map((meta.testcases || []).map((t) => [t.name, t]));
     for (const [i, inName] of inNames.entries()) {
       const base = inName.replace(/^testcases\//, "").replace(/\.in$/i, "");
@@ -120,12 +134,29 @@
       fd.append("t_out", new Blob([files[outName]]), base + ".out");
       fd.append("time_limit", lim.time_limit || "1");
       fd.append("memory_limit", lim.memory_limit || "32");
-      await fetch(`/problem/${pid()}/testcase/`, {
+      const res = await fetch(`/problem/${pid()}/testcase/`, {
         method: "POST",
         body: fd,
         headers: { "X-CSRFToken": csrf },
+        credentials: "same-origin",
       });
+      if (!res.ok)
+        throw new Error(`上傳測資 ${base} 失敗（HTTP ${res.status}）`);
     }
+  }
+
+  // 文字欄位只是被寫進表單，還沒進資料庫。走 #save_button 而不是
+  // form.submit()：edit.js 要在 click 時把 action / target 從 Preview 的設定
+  // 還原，而且這條路徑會經過 editor.js 的 submit handler 做 Markdown→HTML
+  // 轉換。後端存檔後會 redirect 到題目頁，等於自動重整。
+  function saveForm(status) {
+    const btn = document.getElementById("save_button");
+    if (btn) {
+      status("儲存中…");
+      btn.click();
+      return true;
+    }
+    return false;
   }
 
   async function importZip(file, status) {
@@ -144,7 +175,10 @@
       `即將套用到題目 ${pid()}：\n\n` +
         `・題目名稱：${meta.fields?.pname ?? "(無)"}\n` +
         `・敘述 / 輸入 / 輸出、樣例 IO\n` +
-        `・測資 ${inNames.length} 筆，會先刪光現有的 ${existing} 筆\n\n` +
+        (inNames.length
+          ? `・測資 ${inNames.length} 筆，會先刪光現有的 ${existing} 筆\n`
+          : `・zip 裡沒有測資，現有的 ${existing} 筆保持不動\n`) +
+        `・做完自動存檔（等同按下 Save）\n\n` +
         `測資刪除無法復原。確定要繼續嗎？`,
     );
     if (!ok) return status("已取消");
@@ -181,12 +215,20 @@
       e.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    if (inNames.length) await replaceTestcases(files, inNames, meta, status);
+    // zip 裡沒測資就不動現有的。曾經有過匯出靜默漏抓測資的 bug，若在
+    // 這裡照著空 zip 把題目清空，使用者會連備份都沒有。
+    if (inNames.length) {
+      await deleteTestcases(status);
+      await uploadTestcases(files, inNames, meta, status);
+    }
 
-    const tagNote = meta.tags?.length
-      ? `　標籤請手動加：${meta.tags.join(", ")}`
-      : "";
-    status(`✅ 匯入完成，請按 Save 儲存文字欄位。${tagNote}`);
+    // 標籤是獨立的 AJAX，不隨表單送出，只能提醒。先講再存檔——存完頁面
+    // 就跳走了，那時候才顯示等於沒顯示。
+    if (meta.tags?.length)
+      alert(`匯入完成。標籤沒辦法自動加，請手動補上：\n\n${meta.tags.join(", ")}`);
+
+    if (!saveForm(status))
+      status("✅ 匯入完成，但找不到 Save 鈕，請手動儲存文字欄位。");
   }
 
   function buildUI() {
@@ -195,16 +237,20 @@
 
     const box = document.createElement("div");
     box.id = "oj-transfer-bar";
+    // 正常情況下 ui.js 會把這幾顆按鈕搬進「題目搬移」選單、再把這個 box
+    // 整個移除，所以這裡只需要撐住 ui.js 沒跑成功的退路。用 token 上色，
+    // 深色模式才不會是一塊亮底。
     box.style.cssText =
       "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 16px;" +
-      "padding:10px 12px;border:1px solid #ea4c89;border-radius:6px;background:#fff5f8;";
+      "padding:10px 12px;border:1px solid var(--hair);border-radius:6px;" +
+      "background:var(--surface);color:var(--ink);";
 
     const label = document.createElement("b");
     label.textContent = "📦 題目搬移";
-    label.style.cssText = "font-size:13px;color:#ea4c89;";
+    label.style.cssText = "font-size:13px;";
 
     const status = document.createElement("span");
-    status.style.cssText = "font-size:12px;color:#666;margin-left:auto;";
+    status.style.cssText = "font-size:12px;color:var(--muted);margin-left:auto;";
 
     const setStatus = (t) => {
       status.textContent = t;
@@ -214,9 +260,8 @@
       const b = document.createElement("button");
       b.type = "button"; // 不指定會被當成 submit，按下去就送出整張表單
       b.textContent = text;
-      b.style.cssText =
-        "padding:5px 12px;font-size:13px;font-weight:bold;background:#ea4c89;" +
-        "color:#fff;border:none;border-radius:4px;cursor:pointer;";
+      // 不設 inline style。ui.js 會把它搬進 .ojui-menu，那裡的樣式已經走
+      // token；inline 的話會蓋掉，變成選單裡兩塊突兀的色塊。
       b.addEventListener("click", async () => {
         b.disabled = true;
         try {

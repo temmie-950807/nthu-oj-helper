@@ -871,22 +871,84 @@ body.ojui-page .navbar .active > a {
   display: none;
 }
 
-.ojui textarea.ojmd-input {
-  max-width: none;
+/* 編輯區是 CodeMirror。textarea 還在表單裡（display:none），送出的內容
+   從它來，畫面上的輸入完全走 .cm-* 這一層。 */
+.ojui .ojmd-input {
+  min-width: 0;
   height: 100%;
-  padding: 16px;
-  border: none;
+  overflow: hidden;
   border-right: 1px solid var(--hair);
-  border-radius: 0;
+}
+.ojui .ojmd-input .cm-editor {
+  height: 100%;
+  background: transparent;
+  color: var(--ink);
+}
+.ojui .ojmd-input .cm-editor.cm-focused {
+  outline: none; /* CodeMirror 預設是一圈點狀外框 */
+}
+.ojui .ojmd-input .cm-scroller {
   font-family: var(--mono);
   font-size: 13px;
   line-height: 1.7;
-  resize: none;
 }
-.ojui textarea.ojmd-input:focus {
-  outline: none;
-  box-shadow: none;
-  border-color: var(--hair);
+.ojui .ojmd-input .cm-content {
+  padding: 16px;
+  caret-color: var(--accent);
+}
+.ojui .ojmd-input .cm-cursor,
+.ojui .ojmd-input .cm-dropCursor {
+  border-left: 2px solid var(--accent);
+}
+.ojui .ojmd-input .cm-selectionBackground,
+.ojui .ojmd-input .cm-focused .cm-selectionBackground,
+.ojui .ojmd-input .cm-content ::selection {
+  background: var(--accent-soft);
+}
+
+/* ---- 圖片方塊 --------------------------------------------------
+   原始碼裡是 <img src="@@IMG0@@" width="400">，畫面上換成這個方塊。
+   base64 本體收在 editor.js 的 images[]，不進編輯區。 */
+.ojui .ojmd-img {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+  max-width: 100%;
+  margin: 2px 0;
+  padding: 4px 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: default;
+  user-select: none;
+}
+.ojui .ojmd-img img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+.ojui .ojmd-img-meta {
+  display: block;
+  padding: 3px 2px 4px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ojui .ojmd-img-grip {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--surface);
+  border-radius: 4px;
+  background: var(--accent);
+  cursor: ew-resize;
 }
 .ojui .ojmd-preview {
   padding: 16px;

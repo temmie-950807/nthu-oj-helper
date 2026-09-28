@@ -8,7 +8,10 @@
 window.addEventListener("message", (e) => {
   if (e.source !== window) return;
   if (!e.data || e.data.__ojHelperReload !== true) return;
-  chrome.runtime.sendMessage({ type: "oj-helper-reload" });
+  // 重載成功的話 service worker 會被換掉，這個 content script 隨即變成
+  // 孤兒，回覆永遠不會來。不接住的話 console 每次都留一筆
+  //「Could not establish connection」，看起來像壞掉了其實是預期行為。
+  chrome.runtime.sendMessage({ type: "oj-helper-reload" }).catch(() => {});
 });
 
 // ── 2. 注入離線字體 ──────────────────────────────────────────────
