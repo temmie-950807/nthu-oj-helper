@@ -228,6 +228,7 @@ body.ojui-site label {
 }
 
 /* ---- 容器類 ---------------------------------------------------- */
+body.ojui-site .jumbotron,
 body.ojui-site .well,
 body.ojui-site .panel,
 body.ojui-site .panel-default {
@@ -565,4 +566,56 @@ body.ojui-site .table > tbody > tr.info > td {
 }
 .ojui-float-grip:hover {
   opacity: 1;
+}
+
+/* ---- 比賽表單的雙欄選擇器（multi-select） -----------------------
+   /contest/new/ 與 /contest/edit/<cid>/ 才有。函式庫與 editContest.css
+   寫死了白底 #fff、紅綠標題列與 #08c 的 hover，深色模式下是三塊刺眼的
+   亮色。這裡整組換成 token。 */
+body.ojui-site .ms-container .ms-selectable,
+body.ojui-site .ms-container .ms-selection {
+  background: transparent;
+  color: var(--ink);
+}
+body.ojui-site .ms-container .ms-list {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: none;
+  transition: none;
+}
+body.ojui-site .ms-container .ms-list.ms-focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+body.ojui-site .ms-container .ms-selectable li.ms-elem-selectable,
+body.ojui-site .ms-container .ms-selection li.ms-elem-selection {
+  border-bottom: 1px solid var(--hair);
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--ink);
+}
+body.ojui-site .ms-container .ms-selectable li.ms-hover,
+body.ojui-site .ms-container .ms-selection li.ms-hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+/* 原本是 #d9534f 紅 / #449d44 綠的實心色塊，當標籤用太搶眼；何況左邊那條
+   現在還要顯示「已載入 N / M 題」，紅底會讀成錯誤訊息。 */
+body.ojui-site .ms-container div.all-header,
+body.ojui-site .ms-container div.selected-header {
+  padding: 5px 8px;
+  border-top: 1px solid var(--hair);
+  border-radius: 0 0 7px 7px;
+  background: var(--canvas);
+  color: var(--muted);
+  font-size: 12px;
+}
+body.ojui-site ul.errorlist {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  list-style: none;
 }

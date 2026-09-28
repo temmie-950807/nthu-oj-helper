@@ -12,7 +12,11 @@ const api = globalThis.browser ?? globalThis.chrome;
 window.addEventListener("message", (e) => {
   if (e.source !== window) return;
   if (!e.data || e.data.__ojHelperReload !== true) return;
-  api.runtime.sendMessage({ type: "oj-helper-reload" });
+  // 重載成功的話背景頁會被換掉（Chromium 是 service worker，Firefox 是 event
+  // page），這個 content script 隨即變成孤兒，回覆永遠不會來。不接住的話
+  // console 每次都留一筆「Could not establish connection」，看起來像壞掉了
+  // 其實是預期行為。兩邊的 sendMessage 不帶 callback 時都回 Promise。
+  api.runtime.sendMessage({ type: "oj-helper-reload" }).catch(() => {});
 });
 
 // ── 2. 注入離線字體 ──────────────────────────────────────────────

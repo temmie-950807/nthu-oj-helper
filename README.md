@@ -157,7 +157,7 @@ git pull
 | 附加元件 ID | 由瀏覽器指派 | `browser_specific_settings.gecko.id`，並宣告 `strict_min_version: 128.0` |
 | 擴充功能 API | `chrome.*` | `globalThis.browser ?? globalThis.chrome`（`background.js`、`bridge.js`） |
 | 字體注入 | `runtime.getURL()` 就夠 | 同上，但多一條 fallback：`moz-extension:` 被頁面 CSP 的 `font-src` 擋下時改 inline 成 `data:` URL |
-| 下載 zip | 游離的 `<a>` 直接 `click()` 就會下載 | `<a>` 必須先 `appendChild` 到文件裡，否則 Firefox 靜默不下載 |
+| 下載 zip | 游離的 `<a>` 直接 `click()` 就會下載 | `<a>` 必須先 `appendChild` 到文件裡，否則 Firefox 靜默不下載（`transfer.js`、`contest.js`） |
 
 其餘 JS / CSS 兩邊共用。從 `master` 同步新功能：
 
