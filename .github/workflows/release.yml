@@ -1,0 +1,119 @@
+name: Release
+
+# 打 tag 就自動打包兩個變體，附在 GitHub Release 上。
+#
+# 為什麼要讀兩個分支：Chromium 版在 master、Firefox 版在 firefox，兩邊的
+# manifest.json 不相容（background.service_worker vs background.scripts），
+# 沒辦法共用一份檔案。tag 打在 master 上，firefox 分支必須已經合併該 commit，
+# 否則發出去的 .xpi 會比 zip 舊一截——這裡直接擋下來，不讓它悄悄發生。
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要發佈的 tag（例如 v8.7），必須已經存在"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 要讀另一個分支、要做 ancestor 檢查，淺複製不夠
+          fetch-depth: 0
+
+      # checkout 在 tag push 時是 detached HEAD，不保證 origin/master 與
+      # origin/firefox 這兩個 ref 在本地存在。明確抓一次，後面才有東西可比。
+      - name: 取得所有分支與 tag
+        run: git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
+
+      - name: 決定 tag 與版本
+        id: ver
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          git rev-parse -q --verify "refs/tags/$TAG^{commit}" >/dev/null \
+            || { echo "::error::找不到 tag $TAG"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: 檢查兩個分支都含這個 tag
+        run: |
+          set -euo pipefail
+          TAG='${{ steps.ver.outputs.tag }}'
+          git merge-base --is-ancestor "$TAG" origin/master \
+            || { echo "::error::$TAG 不在 master 上"; exit 1; }
+          git merge-base --is-ancestor "$TAG" origin/firefox \
+            || { echo "::error::firefox 分支還沒合併 $TAG，發出去的 .xpi 會是舊的。先跑：git checkout firefox && git merge master && git push"; exit 1; }
+
+      - name: 打包
+        run: |
+          set -euo pipefail
+          TAG='${{ steps.ver.outputs.tag }}'
+          VERSION='${{ steps.ver.outputs.version }}'
+          mkdir -p dist
+
+          # Chromium 版取 tag 指到的那個 commit；Firefox 版取分支頭，
+          # 上一步已經保證它含有這個 tag。
+          git worktree add --detach /tmp/build-chrome "$TAG"
+          git worktree add --detach /tmp/build-firefox origin/firefox
+
+          # manifest 的 version 跟 tag 對不起來就停。Release 標 8.7 卻裝出
+          # 8.6 的擴充功能，是事後最難察覺的那種錯。
+          for v in chrome firefox; do
+            m="/tmp/build-$v/manifest.json"
+            jq empty "$m" || { echo "::error::$v 的 manifest.json 不是合法 JSON"; exit 1; }
+            got=$(jq -r .version "$m")
+            [ "$got" = "$VERSION" ] \
+              || { echo "::error::$v 的 manifest version 是 $got，tag 是 $VERSION"; exit 1; }
+          done
+
+          # .xpi 就是 zip，Firefox 認的是副檔名。
+          # 排除版控與 CI 自己的檔案，其餘照原樣打包——manifest.json 必須在根目錄。
+          EXCLUDE=( -x '.git' '.git/*' '.github/*' '.gitignore' '*.DS_Store' )
+          ( cd /tmp/build-chrome \
+            && zip -qr "$GITHUB_WORKSPACE/dist/nthu-oj-helper-$VERSION-chrome.zip" . "${EXCLUDE[@]}" )
+          ( cd /tmp/build-firefox \
+            && zip -qr "$GITHUB_WORKSPACE/dist/nthu-oj-helper-$VERSION-firefox.xpi" . "${EXCLUDE[@]}" )
+
+          ls -lh dist
+
+      # 只是提示。web-ext 對 MV3 有些規則比 Firefox 本身嚴，擋下發佈不划算，
+      # 但輸出值得留在 log 裡，manifest 真的寫壞時這裡會先講。
+      - name: web-ext lint（僅提示）
+        continue-on-error: true
+        run: npx --yes web-ext@latest lint --source-dir /tmp/build-firefox
+
+      - name: 發 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='${{ steps.ver.outputs.tag }}'
+          VERSION='${{ steps.ver.outputs.version }}'
+
+          cat > /tmp/notes.md <<EOF
+          ## 安裝
+
+          **Chrome / Edge / Brave / Arc** — 下載 \`nthu-oj-helper-$VERSION-chrome.zip\`，
+          解壓縮後到 \`chrome://extensions\` 打開開發人員模式，點「載入未封裝項目」選那個資料夾。
+
+          **Firefox**（需要 128 以上）— 下載 \`nthu-oj-helper-$VERSION-firefox.xpi\`，
+          到 \`about:debugging#/runtime/this-firefox\` 點「載入臨時附加元件」直接選這個檔案，不用解壓縮。
+
+          > .xpi 沒有經過 AMO 簽章，所以是臨時附加元件，關掉 Firefox 就會消失，重開要再載入一次。
+
+          兩個檔案內容相同，只有 manifest 與少數幾處寫法不同（見 firefox 分支的 README）。
+          EOF
+
+          gh release create "$TAG" dist/* \
+            --title "v$VERSION" \
+            --notes-file /tmp/notes.md \
+            --generate-notes

@@ -139,6 +139,29 @@ git pull
 
 ---
 
+## 發佈
+
+`.github/workflows/release.yml`：打 tag 就自動打包，附在 GitHub Release 上。
+
+```bash
+# 先確認 manifest.json 的 version 跟要打的 tag 一致，對不起來 workflow 會擋下來
+git checkout firefox && git merge master && git push   # Firefox 版要先跟上
+git checkout master
+git tag v8.7 && git push origin v8.7
+```
+
+產出兩個檔案：
+
+| 檔案 | 來源 | 怎麼裝 |
+|---|---|---|
+| `nthu-oj-helper-<版本>-chrome.zip` | tag 指到的 commit | 解壓縮後 `chrome://extensions` 載入未封裝項目 |
+| `nthu-oj-helper-<版本>-firefox.xpi` | `firefox` 分支 | `about:debugging` 載入臨時附加元件，直接選這個檔案不用解壓縮 |
+
+`.xpi` 沒有 AMO 簽章，所以只能當臨時附加元件，關掉 Firefox 就消失。
+
+workflow 會擋下兩種容易發生又難察覺的錯：tag 不在 `master` 上，或 `firefox`
+分支還沒合併這個 tag（那樣發出去的 `.xpi` 會比 zip 舊一截）。
+
 ## 技術細節
 
 沒有 popup、不要求任何權限。背景頁只有一個用途：讓頁面能請求重載擴充功能，
