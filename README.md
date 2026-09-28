@@ -1,6 +1,9 @@
 # NTHU OJ Helper
 
-給 [NTHU Online Judge](https://acm.cs.nthu.edu.tw/) 用的 Chrome 擴充功能，把出題與刷題最煩的三件事自動化。
+給 [NTHU Online Judge](https://acm.cs.nthu.edu.tw/) 用的瀏覽器擴充功能，把出題與刷題最煩的三件事自動化。
+
+> **這是 `firefox` 分支。** 功能與 `master` 完全相同，只是 manifest 與少數幾處寫法改成 Firefox 吃得下的版本。
+> 用 Chrome / Edge / Brave / Arc 請切回 `master`；這個分支的 manifest 用 `background.scripts`，Chromium 不接受。
 
 不需要 Tampermonkey，裝了就能用。
 
@@ -89,21 +92,27 @@ TestCase 分頁最上方會出現一個粉紅虛線拖曳區。
 
 ---
 
-## 安裝
+## 安裝（Firefox）
 
-因為沒有上架 Chrome Web Store，要用開發者模式手動載入。
+需要 **Firefox 128 以上**（`"world": "MAIN"` 從這一版才支援）。因為沒有上架
+AMO，要用臨時載入。
 
 ```bash
-git clone https://github.com/temmie-950807/nthu-oj-helper.git
+git clone -b firefox https://github.com/temmie-950807/nthu-oj-helper.git
 ```
 
 然後：
 
-1. 開 `chrome://extensions`
-2. 右上角打開 **開發人員模式 / Developer mode**
-3. 點 **載入未封裝項目 / Load unpacked**，選剛才 clone 下來的 `nthu-oj-helper` 資料夾
+1. 開 `about:debugging#/runtime/this-firefox`
+2. 點 **載入臨時附加元件 / Load Temporary Add-on**
+3. 選剛才 clone 下來資料夾裡的 **`manifest.json`**（不是選資料夾本身，這點跟 Chrome 不一樣）
 
-進入 NTHU OJ 任一頁面就會生效。Edge、Brave、Arc 這些 Chromium 瀏覽器步驟一樣。
+進入 NTHU OJ 任一頁面就會生效。
+
+⚠️ **臨時附加元件關掉 Firefox 就會消失**，每次重開瀏覽器都要重新載入一次。
+想要常駐得先簽章（`web-ext sign`），或改用 Firefox Developer Edition / Nightly
+並把 `about:config` 的 `xpinstall.signatures.required` 設成 `false`，再裝打包好
+的 `.xpi`。
 
 ### 更新
 
@@ -111,7 +120,7 @@ git clone https://github.com/temmie-950807/nthu-oj-helper.git
 git pull
 ```
 
-然後回 `chrome://extensions` 點這個擴充功能的重新整理圖示，再重整 OJ 頁面。
+然後回 `about:debugging` 點這個附加元件的 **重新載入 / Reload**，再重整 OJ 頁面。
 
 ---
 
@@ -125,15 +134,34 @@ git pull
 
 ### 如果刪除舊測資時一直跳出確認對話框
 
-代表 `manifest.json` 裡的 `"world": "MAIN"` 沒生效。這個設定需要 **Chrome 111 以上**，確認一下瀏覽器版本。
+代表 `manifest.json` 裡的 `"world": "MAIN"` 沒生效。這個設定需要 **Firefox 128
+以上**（Chromium 那邊是 111 以上），確認一下瀏覽器版本。
 
 ---
 
 ## 技術細節
 
-單一 content script，沒有 background service worker、沒有 popup、不要求任何權限。
+沒有 popup、不要求任何權限。背景頁只有一個用途：讓頁面能請求重載擴充功能，
+方便改完程式碼不用手動去點。
 
 `manifest.json` 有兩個設定是關鍵，改動前先看懂：
 
 - **`"world": "MAIN"`** — 讓腳本跑在網頁自己的 JavaScript 環境裡，而不是擴充功能預設的隔離環境。清空舊測資那段需要暫時覆寫 `window.confirm` 來跳過每一筆的確認框，在隔離環境下這個覆寫碰不到網頁自己的程式碼，會變成每刪一筆就跳一次對話框。
 - **`"run_at": "document_end"`** — 腳本主體包在 `window.addEventListener("load", ...)` 裡。預設的 `document_idle` 有機會在 `load` 事件**之後**才注入，那樣 listener 永遠不會被呼叫，整個擴充功能會靜默失效。`document_end` 保證在 `load` 之前注入。
+
+### 這個分支跟 `master` 差在哪
+
+| | `master`（Chromium） | `firefox` |
+|---|---|---|
+| 背景頁 | `background.service_worker` | `background.scripts`（MV3 event page，Firefox 不支援 service worker） |
+| 附加元件 ID | 由瀏覽器指派 | `browser_specific_settings.gecko.id`，並宣告 `strict_min_version: 128.0` |
+| 擴充功能 API | `chrome.*` | `globalThis.browser ?? globalThis.chrome`（`background.js`、`bridge.js`） |
+| 字體注入 | `runtime.getURL()` 就夠 | 同上，但多一條 fallback：`moz-extension:` 被頁面 CSP 的 `font-src` 擋下時改 inline 成 `data:` URL |
+| 下載 zip | 游離的 `<a>` 直接 `click()` 就會下載 | `<a>` 必須先 `appendChild` 到文件裡，否則 Firefox 靜默不下載 |
+
+其餘 JS / CSS 兩邊共用。從 `master` 同步新功能：
+
+```bash
+git checkout firefox
+git merge master      # 通常只有 manifest.json 會衝突
+```

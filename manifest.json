@@ -70,7 +70,9 @@
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "scripts": [
+      "background.js"
+    ]
   },
   "web_accessible_resources": [
     {
@@ -82,5 +84,11 @@
         "*://acm.cs.nthu.edu.tw/*"
       ]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "nthu-oj-helper@temmie",
+      "strict_min_version": "128.0"
+    }
+  }
 }

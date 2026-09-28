@@ -85,8 +85,15 @@
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `problem-${pid()}-${(meta.fields.pname || "untitled").replace(/[^\w\-]/g, "_")}.zip`;
+    // Firefox 只對「掛在文件裡」的 <a> 處理程式化 click()，沒 append 就靜默
+    // 不下載；Chromium 兩種都吃。
+    a.style.display = "none";
+    document.body.appendChild(a);
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 2000);
     status(`✅ 已匯出，含 ${rows.length} 筆測資`);
   }
 
