@@ -243,6 +243,28 @@ body.ojui-site .panel-heading {
   color: var(--ink);
   font-weight: 600;
 }
+
+/* 首頁那塊 hero 是 .jumbotron#logo-content。Bootstrap 把底色寫死
+   #eeeeee、字色 inherit，深色模式下字跟著 body 變成淺色的 --ink，整段
+   就成了淺底淺字，完全讀不到。
+   邊框與圓角另外開一條：OJ 自己的 #logo-content 是 5px 黑框 + 25px 圓角，
+   ID 選擇器壓得過 class，不帶 ID 改不動。 */
+body.ojui-site .jumbotron {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+}
+body.ojui-site #logo-content {
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+}
+
+/* Bootstrap 的 hr 是 #eeeeee，深色下會變成一條亮線（jumbotron 裡那條
+   分隔線首當其衝） */
+body.ojui-site hr {
+  border-top-color: var(--hair);
+}
 body.ojui-site .alert {
   border-radius: 7px;
   border-width: 1px;
