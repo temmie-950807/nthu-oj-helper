@@ -110,9 +110,8 @@ git clone -b firefox https://github.com/temmie-950807/nthu-oj-helper.git
 進入 NTHU OJ 任一頁面就會生效。
 
 ⚠️ **臨時附加元件關掉 Firefox 就會消失**，每次重開瀏覽器都要重新載入一次。
-想要常駐得先簽章（`web-ext sign`），或改用 Firefox Developer Edition / Nightly
-並把 `about:config` 的 `xpinstall.signatures.required` 設成 `false`，再裝打包好
-的 `.xpi`。
+想要常駐，改裝 [Releases](https://github.com/temmie-950807/nthu-oj-helper/releases)
+裡簽好章的 `.xpi`：`about:addons` 點齒輪 →「從檔案安裝附加元件」選那個檔案。
 
 ### 更新
 
@@ -155,9 +154,24 @@ git tag v8.7 && git push origin v8.7
 | 檔案 | 來源 | 怎麼裝 |
 |---|---|---|
 | `nthu-oj-helper-<版本>-chrome.zip` | tag 指到的 commit | 解壓縮後 `chrome://extensions` 載入未封裝項目 |
-| `nthu-oj-helper-<版本>-firefox.xpi` | `firefox` 分支 | `about:debugging` 載入臨時附加元件，直接選這個檔案不用解壓縮 |
+| `nthu-oj-helper-<版本>-firefox.xpi` | `firefox` 分支 | `about:addons` 齒輪 →「從檔案安裝附加元件」，常駐安裝 |
 
-`.xpi` 沒有 AMO 簽章，所以只能當臨時附加元件，關掉 Firefox 就消失。
+`.xpi` 會送 AMO 走 unlisted 管道簽章（不公開上架，只跑自動審查），拿回來的
+檔案可以正常安裝、重開 Firefox 也還在。需要兩個 repo secret：
+
+| Secret | 內容 |
+|---|---|
+| `AMO_JWT_ISSUER` | [AMO API 金鑰頁](https://addons.mozilla.org/developers/addon/api/key/) 的 JWT issuer |
+| `AMO_JWT_SECRET` | 同一頁的 JWT secret |
+
+```bash
+gh secret set AMO_JWT_ISSUER
+gh secret set AMO_JWT_SECRET
+```
+
+沒設這兩個 secret 時 workflow 會照舊發未簽章的 `.xpi`（只能當臨時附加元件），
+並在 log 留警告；有設卻簽失敗則整個 Release 不發。AMO 不接受同一個 version
+上傳兩次，簽章成功後若要重發，得升版號重打 tag。
 
 workflow 會擋下兩種容易發生又難察覺的錯：tag 不在 `master` 上，或 `firefox`
 分支還沒合併這個 tag（那樣發出去的 `.xpi` 會比 zip 舊一截）。
