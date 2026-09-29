@@ -90,7 +90,48 @@ jobs:
       # 但輸出值得留在 log 裡，manifest 真的寫壞時這裡會先講。
       - name: web-ext lint（僅提示）
         continue-on-error: true
-        run: npx --yes web-ext@latest lint --source-dir /tmp/build-firefox
+        run: npx --yes web-ext@8 lint --source-dir /tmp/build-firefox --ignore-files 'store/**'
+
+      # 走 AMO 的 unlisted 管道簽章：不會公開上架，只跑自動審查，通常幾分鐘就
+      # 拿回簽好的 .xpi，使用者裝了就是常駐的正式附加元件。
+      #
+      # 金鑰到 https://addons.mozilla.org/developers/addon/api/key/ 產生，
+      # 存成 repo secret：AMO_JWT_ISSUER（JWT issuer）、AMO_JWT_SECRET（JWT secret）。
+      # 沒設金鑰就照舊發未簽章版本，fork 也能跑；但金鑰有設卻簽失敗就整個停下，
+      # 不能讓使用者以為拿到的是簽好的。
+      #
+      # AMO 不接受同一個 version 上傳兩次。某次簽章其實成功、只是 workflow 在後面
+      # 掛掉，重跑會在這裡失敗——到 AMO 開發者後台下載那一版簽好的檔案手動補上，
+      # 或是升版號重新打 tag。
+      - name: AMO 簽章（unlisted）
+        id: sign
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.ver.outputs.version }}'
+          if [ -z "${WEB_EXT_API_KEY:-}" ] || [ -z "${WEB_EXT_API_SECRET:-}" ]; then
+            echo "::warning::沒有設定 AMO_JWT_ISSUER / AMO_JWT_SECRET，這次發出去的 .xpi 沒有簽章"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # web-ext 自己打包再上傳，預設就會略過隱藏檔（.git、.github…），
+          # store/ 要另外排除，跟上面 zip 的內容保持一致
+          npx --yes web-ext@8 sign \
+            --channel unlisted \
+            --source-dir /tmp/build-firefox \
+            --artifacts-dir /tmp/signed \
+            --ignore-files 'store/**'
+
+          shopt -s nullglob
+          out=( /tmp/signed/*.xpi )
+          [ "${#out[@]}" -eq 1 ] \
+            || { echo "::error::預期拿回一個簽好的 .xpi，實際是 ${#out[@]} 個"; exit 1; }
+          # 蓋掉前面打包的未簽章版本，檔名維持不變
+          mv -f "${out[0]}" "dist/nthu-oj-helper-$VERSION-firefox.xpi"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: 發 Release
         env:
@@ -100,6 +141,15 @@ jobs:
           TAG='${{ steps.ver.outputs.tag }}'
           VERSION='${{ steps.ver.outputs.version }}'
 
+          if [ '${{ steps.sign.outputs.signed }}' = 'true' ]; then
+            FIREFOX_INSTALL="用 Firefox 打開 \`about:addons\`，點齒輪選「從檔案安裝附加元件」選這個檔案（或直接把檔案拖進 Firefox 視窗）。
+          已經過 AMO 簽章，裝好就是常駐的，重開瀏覽器也還在。"
+          else
+            FIREFOX_INSTALL="到 \`about:debugging#/runtime/this-firefox\` 點「載入臨時附加元件」直接選這個檔案，不用解壓縮。
+
+          > 這一版的 .xpi 沒有經過 AMO 簽章，所以是臨時附加元件，關掉 Firefox 就會消失，重開要再載入一次。"
+          fi
+
           cat > /tmp/notes.md <<EOF
           ## 安裝
 
@@ -107,9 +157,7 @@ jobs:
           解壓縮後到 \`chrome://extensions\` 打開開發人員模式，點「載入未封裝項目」選那個資料夾。
 
           **Firefox**（需要 128 以上）— 下載 \`nthu-oj-helper-$VERSION-firefox.xpi\`，
-          到 \`about:debugging#/runtime/this-firefox\` 點「載入臨時附加元件」直接選這個檔案，不用解壓縮。
-
-          > .xpi 沒有經過 AMO 簽章，所以是臨時附加元件，關掉 Firefox 就會消失，重開要再載入一次。
+          $FIREFOX_INSTALL
 
           兩個檔案內容相同，只有 manifest 與少數幾處寫法不同（見 firefox 分支的 README）。
           EOF
