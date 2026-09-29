@@ -77,7 +77,8 @@ jobs:
 
           # .xpi 就是 zip，Firefox 認的是副檔名。
           # 排除版控與 CI 自己的檔案，其餘照原樣打包——manifest.json 必須在根目錄。
-          EXCLUDE=( -x '.git' '.git/*' '.github/*' '.gitignore' '*.DS_Store' )
+          # store/ 是商店列表頁用的大圖，不屬於擴充功能本體，別塞進使用者下載的包
+          EXCLUDE=( -x '.git' '.git/*' '.github/*' '.gitignore' 'store/*' '*.DS_Store' )
           ( cd /tmp/build-chrome \
             && zip -qr "$GITHUB_WORKSPACE/dist/nthu-oj-helper-$VERSION-chrome.zip" . "${EXCLUDE[@]}" )
           ( cd /tmp/build-firefox \
