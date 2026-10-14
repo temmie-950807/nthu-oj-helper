@@ -1,0 +1,77 @@
+/* ============================================================
+   Scoreboard 分數分布柱狀圖（/contest/scoreboard/<cid>/）。全部走 token。
+   ============================================================ */
+
+.ojsb-wrap {
+  margin: 10px 0 16px;
+}
+.ojsb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.ojsb-chart {
+  min-width: 0;
+  padding: 12px 14px 8px;
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.ojsb-head {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ojsb-head b {
+  color: var(--ink);
+  margin-right: 6px;
+}
+.ojsb-plot {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 120px;
+}
+.ojsb-main .ojsb-plot {
+  height: 180px;
+}
+.ojsb-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.ojsb-bar {
+  width: 100%;
+  max-width: 48px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+.ojsb-col:hover .ojsb-bar {
+  background: var(--accent-hover);
+}
+.ojsb-n,
+.ojsb-x {
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.ojsb-n {
+  color: var(--ink);
+}
+.ojsb-x {
+  width: 100%;
+  text-align: center;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

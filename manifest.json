@@ -81,11 +81,13 @@
         "*://acm.cs.nthu.edu.tw/contest/*"
       ],
       "css": [
-        "contest.css"
+        "contest.css",
+        "scoreboard.css"
       ],
       "js": [
         "vendor/fflate.min.js",
-        "contest.js"
+        "contest.js",
+        "scoreboard.js"
       ],
       "run_at": "document_end",
       "world": "MAIN"
