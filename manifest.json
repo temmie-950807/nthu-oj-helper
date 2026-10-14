@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NTHU OJ Helper",
-  "version": "8.9",
+  "version": "9.0",
   "description": "NTHU OJ 出題與刷題輔助：全站介面改造、Markdown + LaTeX 出題、題目 zip 匯入匯出、批量提交、Status 頁增強",
   "icons": {
     "16": "icons/icon-16.png",
@@ -81,11 +81,13 @@
         "*://acm.cs.nthu.edu.tw/contest/*"
       ],
       "css": [
-        "contest.css"
+        "contest.css",
+        "scoreboard.css"
       ],
       "js": [
         "vendor/fflate.min.js",
-        "contest.js"
+        "contest.js",
+        "scoreboard.js"
       ],
       "run_at": "document_end",
       "world": "MAIN"
