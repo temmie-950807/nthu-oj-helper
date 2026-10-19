@@ -16,8 +16,10 @@ input.md            選填，Input 欄位
 output.md           選填，Output 欄位
 sample/in.txt       選填，第 1 組 Sample Input
 sample/out.txt      選填，第 1 組 Sample Output
+sample/explain.md   選填，第 1 組的 Explanation
 sample/in-2.txt     選填，第 k 組 Sample（k = 2, 3, …）
 sample/out-2.txt
+sample/explain-2.md 選填，第 k 組的 Explanation
 testcases/001.in    選填，測資 .in / .out 成對
 testcases/001.out
 ```
@@ -78,6 +80,10 @@ testcases/001.out
   - 組別依數字大小排序，所以 `in-10` 會排在 `in-9` 後面。
   - 有 `in-k` 但沒有 `out-k` 時，那一組的 Output 是空的。只有 `out-k`、沒有 `in-k` 的檔案會被忽略。
   - zip 裡沒有任何 `in-k` 時，題目上原本的第 2 組以後會被清掉。
+- 每組都可以另外附一段 Explanation：第 1 組用 `sample/explain.md`，第 k 組用 `sample/explain-<k>.md`。
+  - 內容是 Markdown，規則跟敘述一樣（可寫 LaTeX），題目頁會顯示在該組 Sample Output 底下，標題是「Explanation k」（只有一組時沒有編號）。
+  - 沒有這個檔、或內容只有空白，就不會顯示 Explanation。
+  - 只有 `explain-k.md`、沒有 `in-k.txt` 的檔案會被忽略。
 
 ## 測資
 

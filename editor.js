@@ -170,7 +170,8 @@
   // ===== 多組 Sample =====
   // OJ 每題只有一組 sample_in/out，而且會被 escape；Output 欄位則是 |safe
   // 原樣輸出，所以額外組只能藏在 Output 尾端：
-  //   …渲染後 HTML\n<!--ojs:base64(JSON 額外組)-->\n<題目頁用的 Sample 區塊>
+  //   …渲染後 HTML\n<!--ojs:base64(JSON)-->\n<題目頁用的 Sample 區塊>
+  // JSON 是 { explain: 第 1 組的說明, extra: [{ in, out, explain }, …] }。
   // 註解是給編輯頁讀回來用的，後面那段才是學生看到的。
   const OJS_OPEN = "\n<!--ojs:";
 
@@ -181,17 +182,20 @@
     return at === -1 ? s : s.slice(0, at);
   };
 
+  const NO_SAMPLES = () => ({ explain: "", extra: [] });
   function storedSamples(s) {
     const at = s.lastIndexOf(OJS_OPEN);
-    if (at === -1) return [];
+    if (at === -1) return NO_SAMPLES();
     try {
       const end = s.indexOf(TAG_CLOSE, at);
-      const list = JSON.parse(b64d(s.slice(at + OJS_OPEN.length, end)));
-      if (Array.isArray(list)) return list;
+      const v = JSON.parse(b64d(s.slice(at + OJS_OPEN.length, end)));
+      // 最早的版本只存額外組陣列，沒有 Explanation
+      if (Array.isArray(v)) return { explain: "", extra: v };
+      if (v && Array.isArray(v.extra)) return { explain: v.explain || "", extra: v.extra };
     } catch {}
     // 壞掉就當沒有額外組。整個編輯器跟著掛掉的話，連第一組都救不回來。
     console.warn("[OJ Helper] Output 尾端的額外 Sample 解析失敗，視為沒有額外組");
-    return [];
+    return NO_SAMPLES();
   }
 
   // textarea 是 RCDATA：& 會被解成字元參照、</textarea 會提早關閉，所以要轉。
@@ -205,18 +209,28 @@
   // 不墊這個的話第一行是空行的 sample 會少一行。
   // 原生區塊用相鄰兄弟選擇器藏，不綁題號：contest.js 匯入比賽時會把 Output
   // 原樣搬到新題號，綁了題號搬過去就藏不住。
+  // explainHtml 是已經轉好的 HTML（跟敘述走同一條 Markdown + MathJax 路徑）。
+  // 只有一組時標題不加編號，跟原生的「Sample Input」一樣。
   function samplesHtml(pid, list) {
+    const n = (k) => (list.length > 1 ? ` ${k}` : "");
     const io = (k, kind, label, text) =>
-      `<h3>Sample ${label} ${k}&nbsp;&nbsp;<a class='btn btn-primary downloadSample${label}Button' pid='${pid}-${k}'>Download</a></h3>\n` +
+      `<h3>Sample ${label}${n(k)}&nbsp;&nbsp;<a class='btn btn-primary downloadSample${label}Button' pid='${pid}-${k}'>Download</a></h3>\n` +
       `<div class='panel-body'>\n` +
       `<textarea id='${pid}-${k}_sample${kind}' class='panel-body sampleIO' readonly>\n${escText(text)}</textarea>\n` +
       `</div>\n`;
+    const ex = (k, html) =>
+      html ? `<h3>Explanation${n(k)}</h3>\n<div class="ojs-explain">\n${html}\n</div>\n` : "";
     const native =
       ".ojs-samples~h3:has(>.downloadSampleInputButton,>.downloadSampleOutputButton)";
     return (
       `<div class="ojs-samples">\n` +
       list
-        .map((s, i) => io(i + 1, "In", "Input", s.in) + io(i + 1, "Out", "Output", s.out))
+        .map(
+          (s, i) =>
+            io(i + 1, "In", "Input", s.in) +
+            io(i + 1, "Out", "Output", s.out) +
+            ex(i + 1, s.explainHtml),
+        )
         .join("") +
       `</div><style>${native},${native}+.panel-body{display:none}</style>`
     );
@@ -736,7 +750,7 @@
     // sample.js 也在 load 讀這個值，manifest 裡我們排在它前面，所以要在
     // 任何非同步步驟（whenReady）之前同步設好。
     const outTa = document.getElementById("id_output");
-    window.__ojStoredSamples = outTa ? storedSamples(outTa.value) : [];
+    window.__ojStoredSamples = outTa ? storedSamples(outTa.value) : NO_SAMPLES();
     if (
       typeof marked === "undefined" ||
       typeof MathJax === "undefined" ||
@@ -777,11 +791,15 @@
     // （form.submit() 不會重新觸發 submit 事件，不會無限迴圈）。
     form.addEventListener("submit", async (e) => {
       // Sample IO 的 UI 沒起來就沿用載入時讀到的，免得把額外組洗掉
+      const sm = window.__ojSamples?.get() ?? window.__ojStoredSamples ?? NO_SAMPLES();
+      const explain1 = (sm.explain || "").trim() ? sm.explain : "";
       // 輸入輸出都空的組是按了「新增」沒填，畫出來只是兩個空框
-      const extra = (window.__ojSamples?.get() ?? window.__ojStoredSamples ?? []).filter(
-        (s) => s.in || s.out,
-      );
-      if (extra.length && !active.has("id_output"))
+      const extra = (sm.extra || [])
+        .map((s) => ({ ...s, explain: (s.explain || "").trim() ? s.explain : "" }))
+        .filter((s) => s.in || s.out || s.explain);
+      // 只有一組但有說明時也要自己畫：說明得接在第 1 組底下，原生區塊做不到
+      const ownSamples = extra.length > 0 || !!explain1;
+      if (ownSamples && !active.has("id_output"))
         console.warn("[OJ Helper] Output 欄位未接管，額外 Sample 無法儲存");
       if (!active.size) return; // 一個欄位都沒接管成功就完全不介入
       // edit.js 綁在 DOM-ready、比這裡早跑。它在 judge type 從 SPECIAL/PARTIAL
@@ -810,17 +828,24 @@
         const repacked = pack(md);
         // 註解只存去掉圖片資料的精簡原稿，圖片本體單獨留在 html 那份
         ta.value = `${TAG_OPEN}${b64e(repacked.text)}${TAG_CLOSE}\n${html}`;
-        // 只有 1 組時什麼都不加，題目頁維持原生樣子。有額外組時第 1 組也要
-        // 一起畫：原生區塊會被藏掉，順序才會是 1, 2, …
-        if (id === "id_output" && extra.length) {
-          const first = {
-            in: form.querySelector("[name=sample_in]")?.value ?? "",
-            out: form.querySelector("[name=sample_out]")?.value ?? "",
-          };
+        // 只有 1 組且沒有說明時什麼都不加，題目頁維持原生樣子。否則第 1 組
+        // 也要一起畫：原生區塊會被藏掉，順序才會是 1, 2, …
+        if (id === "id_output" && ownSamples) {
+          const groups = [
+            {
+              in: form.querySelector("[name=sample_in]")?.value ?? "",
+              out: form.querySelector("[name=sample_out]")?.value ?? "",
+              explain: explain1,
+            },
+            ...extra,
+          ];
+          // 先序列化再轉 HTML：explainHtml 是掛在同一批物件上的，晚一步
+          // stringify 會把轉好的 HTML 也塞進註解，整份資料存兩次
+          const blob = b64e(JSON.stringify({ explain: explain1, extra }));
+          for (const g of groups)
+            g.explainHtml = g.explain ? await typeset(mdToHtml(g.explain)) : "";
           const pid = location.pathname.match(/\/problem\/(\d+)/)[1];
-          ta.value +=
-            `${OJS_OPEN}${b64e(JSON.stringify(extra))}${TAG_CLOSE}\n` +
-            samplesHtml(pid, [first, ...extra]);
+          ta.value += `${OJS_OPEN}${blob}${TAG_CLOSE}\n` + samplesHtml(pid, groups);
         }
       }
 
