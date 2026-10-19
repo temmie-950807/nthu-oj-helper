@@ -59,7 +59,9 @@ OJ 未來可能會斷外網，貼外部圖床的連結那天會全部變破圖�
 
 OJ 原生只有一組 Sample Input / Output，那就是第 1 組；第 2 組以後在編輯頁另外加。額外組沒有自己的欄位，是存在 **Output 欄位尾端**。題目頁會把第 1..n 組照原生樣式畫在原本 Sample 的位置，並把原生那塊藏起來。
 
-⚠️ 如果有人**沒裝擴充功能**、直接用原生 CKEditor 編輯並存檔，額外組會壞掉。
+每一組（包含第 1 組）都可以按「＋ Explanation」加一段說明，用 Markdown 寫、可以放 LaTeX，題目頁會顯示在那組 Sample Output 底下。沒加就不會出現。
+
+⚠️ 如果有人**沒裝擴充功能**、直接用原生 CKEditor 編輯並存檔，額外組和 Explanation 會壞掉。
 
 ### 4. 題目 zip 匯入匯出（`/problem/<pid>/edit/`）
 
@@ -74,8 +76,10 @@ input.md
 output.md
 sample/in.txt     第 1 組 Sample（原生欄位）
 sample/out.txt
+sample/explain.md 第 1 組的 Explanation（選填）
 sample/in-2.txt   第 2 組以後，依數字排序；缺 out 視為空的
 sample/out-2.txt
+sample/explain-2.md
 testcases/001.in
 testcases/001.out
 testcases/002.in

@@ -71,9 +71,13 @@
     files["sample/out.txt"] = enc($("sample_out")?.value || "");
     // 第 1 組是原生欄位，檔名維持 in.txt 好讓舊 zip 照樣讀得進來；第 2 組
     // 以後才編號。sample.js 沒起來時退回 editor.js 從 Output 讀出的那份。
-    (window.__ojSamples?.get() ?? window.__ojStoredSamples ?? []).forEach((s, i) => {
+    // Explanation 是選填的，沒寫就不產生檔案。
+    const sm = window.__ojSamples?.get() ?? window.__ojStoredSamples ?? {};
+    if (sm.explain) files["sample/explain.md"] = enc(sm.explain);
+    (sm.extra || []).forEach((s, i) => {
       files[`sample/in-${i + 2}.txt`] = enc(s.in ?? "");
       files[`sample/out-${i + 2}.txt`] = enc(s.out ?? "");
+      if (s.explain) files[`sample/explain-${i + 2}.md`] = enc(s.explain);
     });
 
     for (const [i, tc] of rows.entries()) {
@@ -188,7 +192,8 @@
       .sort((a, b) => a - b)
       .map((k) => {
         const o = files[`sample/out-${k}.txt`];
-        return { in: dec(files[`sample/in-${k}.txt`]), out: o ? dec(o) : "" };
+        const x = files[`sample/explain-${k}.md`];
+        return { in: dec(files[`sample/in-${k}.txt`]), out: o ? dec(o) : "", explain: x ? dec(x) : "" };
       });
   }
 
@@ -205,6 +210,7 @@
       .sort();
     const existing = readTestcaseRows().length;
     const extra = extraSamples(files);
+    const explain1 = files["sample/explain.md"] ? dec(files["sample/explain.md"]) : "";
 
     // 測資刪除不可逆，動手前把要做的事講清楚
     const ok = fresh || window.confirm(
@@ -255,7 +261,7 @@
       e.dispatchEvent(new Event("input", { bubbles: true }));
     });
     // 匯入是整題覆蓋，zip 裡沒有額外組也要 set([])，把舊的清掉
-    window.__ojSamples?.set(extra);
+    window.__ojSamples?.set({ explain: explain1, extra });
 
     // zip 裡沒測資就不動現有的。曾經有過匯出靜默漏抓測資的 bug，若在
     // 這裡照著空 zip 把題目清空，使用者會連備份都沒有。
@@ -270,8 +276,9 @@
     const notes = [];
     if (meta.tags?.length)
       notes.push(`標籤沒辦法自動加，請手動補上：\n\n${meta.tags.join(", ")}`);
-    if (!window.__ojSamples && (extra.length || window.__ojStoredSamples?.length))
-      notes.push(`額外 Sample（zip 裡 ${extra.length} 組）沒有套用，多組 Sample 介面沒有載入。`);
+    const st = window.__ojStoredSamples;
+    if (!window.__ojSamples && (extra.length || explain1 || st?.extra?.length || st?.explain))
+      notes.push(`額外 Sample 與 Explanation（zip 裡 ${extra.length} 組額外 Sample）沒有套用，多組 Sample 介面沒有載入。`);
     if (notes.length) alert(`匯入完成。${notes.join("\n\n")}`);
 
     if (!saveForm(status))

@@ -4,7 +4,10 @@
    所以原生那兩個欄位固定當「Sample 1」，只搬位置、不改 name、不動 form。
    第 2 組以後的額外組存在 Output 欄位的尾端（由 editor.js 讀寫），這裡
    的 textarea 刻意不給 name：伺服器不認得，送出去只會多一個沒人收的欄位。
-   畫面上的值只透過 window.__ojSamples 交給 editor.js / transfer.js。
+   每組（含 Sample 1）可以選擇加一段 Explanation（Markdown），同樣存在
+   Output 尾端，題目頁會畫在該組 Sample Output 底下。
+   畫面上的值只透過 window.__ojSamples 交給 editor.js / transfer.js，
+   形狀是 { explain: 第 1 組的說明, extra: [{ in, out, explain }, …] }。
    ============================================================ */
 (() => {
   "use strict";
@@ -70,51 +73,86 @@
     // 全部插在 grid 旁邊：跟原生欄位同在 #problem_info 底下，打字時原生的
     // input 事件自然冒泡到 ui.js 的未存檔偵測；ui.js 之後若再包卡片，也是
     // 整批依序搬走。
-    const head = (title, onDel) => {
+    const list = el("div", "ojsample-extra");
+    // 新增、刪除不會產生 input 事件，要自己補一發，不然離開頁面不會警告
+    const changed = () => list.dispatchEvent(new Event("input", { bubbles: true }));
+    const ta = (v) => {
+      const t = el("textarea"); // 不給 name，見檔頭
+      t.spellcheck = false;
+      t.value = v == null ? "" : String(v);
+      return t;
+    };
+
+    // Explanation 是選填的：收起來就等於沒有，存檔時不會畫出來。收起時不清
+    // 內容，誤按「移除」再按一次就回來了；重新整理後才真的消失。
+    const explainBox = () => {
+      const t = ta();
+      t.placeholder = "說明這組 Sample，支援 Markdown 與 $LaTeX$";
+      const box = el("div", "ojsample-cell ojsample-explain");
+      box.append(el("div", "ojsample-label", "Explanation"), t);
+      return box;
+    };
+    const setExplain = (box, v) => {
+      box.querySelector("textarea").value = v == null ? "" : String(v);
+      box.hidden = !box.querySelector("textarea").value;
+      box.dispatchEvent(new Event("ojsample:toggle"));
+    };
+    const getExplain = (box) => (box.hidden ? "" : box.querySelector("textarea").value);
+
+    const head = (title, box, onDel) => {
       const h = el("div", "ojsample-head");
-      h.append(el("span", "ojsample-title", title));
+      const acts = el("div", "ojsample-acts");
+      const x = el("button", "ojui-btn ojui-btn-ghost ojsample-xbtn");
+      x.type = "button"; // 預設是 submit，按了會直接送出表單
+      const paint = () => (x.textContent = box.hidden ? "＋ Explanation" : "移除 Explanation");
+      box.addEventListener("ojsample:toggle", paint);
+      x.addEventListener("click", () => {
+        box.hidden = !box.hidden;
+        paint();
+        if (!box.hidden) box.querySelector("textarea").focus();
+        changed();
+      });
+      acts.append(x);
       if (onDel) {
         const b = el("button", "ojui-btn ojui-btn-danger ojsample-del", "刪除");
-        b.type = "button"; // 預設是 submit，按了會直接送出表單
+        b.type = "button";
         b.addEventListener("click", onDel);
-        h.append(b);
+        acts.append(b);
       }
+      h.append(el("span", "ojsample-title", title), acts);
       return h;
     };
-    const list = el("div", "ojsample-extra");
+
     const add = el("button", "ojui-btn ojui-btn-ghost ojsample-add", "＋ 新增一組 Sample");
     add.type = "button";
-    grid.before(head("Sample 1"));
-    grid.after(list, add);
+    const box1 = explainBox();
+    grid.before(head("Sample 1", box1));
+    grid.after(box1, list, add);
 
     const renumber = () =>
       list.querySelectorAll(".ojsample-title").forEach((t, i) => (t.textContent = `Sample ${i + 2}`));
-    // 新增、刪除不會產生 input 事件，要自己補一發，不然離開頁面不會警告
-    const changed = () => list.dispatchEvent(new Event("input", { bubbles: true }));
     const group = (s) => {
-      const ta = (v) => {
-        const t = el("textarea"); // 不給 name，見檔頭
-        t.spellcheck = false;
-        t.value = v == null ? "" : String(v);
-        return t;
-      };
       const g = el("div", "ojsample-group");
       const gg = el("div", "ojsample-grid");
       gg.append(cell("Input", ta(s?.in)), cell("Output", ta(s?.out)));
+      const box = explainBox();
       g.append(
-        head("", () => {
+        head("", box, () => {
           g.remove();
           renumber();
           changed();
         }),
         gg,
+        box,
       );
+      setExplain(box, s?.explain);
       return g;
     };
     // 程式寫入跟直接改 textarea.value 一樣不發事件：editor.js 載入時灌值
     // 不該被當成使用者改動，要標髒的呼叫端自己 dispatch（同 transfer.js）。
-    const set = (arr) => {
-      list.replaceChildren(...(Array.isArray(arr) ? arr : []).map(group));
+    const set = (v) => {
+      setExplain(box1, v?.explain);
+      list.replaceChildren(...(Array.isArray(v?.extra) ? v.extra : []).map(group));
       renumber();
     };
 
@@ -127,11 +165,13 @@
 
     set(window.__ojStoredSamples);
     window.__ojSamples = {
-      get: () =>
-        [...list.querySelectorAll(".ojsample-grid")].map((g) => {
-          const [i, o] = g.querySelectorAll("textarea");
-          return { in: i.value, out: o.value };
+      get: () => ({
+        explain: getExplain(box1),
+        extra: [...list.querySelectorAll(".ojsample-group")].map((g) => {
+          const [i, o] = g.querySelectorAll(".ojsample-grid textarea");
+          return { in: i.value, out: o.value, explain: getExplain(g.querySelector(".ojsample-explain")) };
         }),
+      }),
       set,
     };
   });

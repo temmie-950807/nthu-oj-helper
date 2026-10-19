@@ -86,8 +86,44 @@
   padding: 6px 9px;
   font-size: 12px;
 }
+.ojui .ojsample-acts {
+  display: flex;
+  gap: 6px;
+}
+.ojui .ojsample-xbtn {
+  padding: 6px 9px;
+  font-size: 12px;
+}
 .ojui .ojsample-group {
   margin-top: 20px;
+}
+
+/* ---- Explanation：跟 grid 同一套外框，接在該組下方 ------------- */
+.ojui .ojsample-explain {
+  margin-top: 8px;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 7px;
+  overflow: hidden;
+}
+/* .ojsample-cell 是 display:flex，會蓋掉 UA 的 [hidden]{display:none} */
+.ojui .ojsample-explain[hidden] {
+  display: none;
+}
+.ojui .ojsample-explain:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.ojui .ojsample-explain textarea {
+  height: 140px;
+  min-height: 80px;
+  font-family: var(--sans);
+}
+/* 權重要壓過 dark.css 的 html[data-oj-theme] .ojui textarea:focus，理由同上 */
+.ojui .ojsample-explain.ojsample-cell textarea:focus {
+  outline: none;
+  border: 0;
+  box-shadow: none;
 }
 .ojui .ojsample-add {
   margin-top: 16px;
