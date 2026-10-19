@@ -70,7 +70,8 @@
         "ui.js",
         "tag.js",
         "testcase.js",
-        "sample.js"
+        "sample.js",
+        "list.js"
       ],
       "run_at": "document_end",
       "world": "MAIN"

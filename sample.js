@@ -1,9 +1,10 @@
 /* ============================================================
-   NTHU OJ Helper — Sample IO 分頁：input / output 並排
-   在 ui.js 之後執行。只搬那兩個 textarea，不改 name、不動 form。
-   OJ 的資料模型只有單一組 sample_in / sample_out，所以這裡不做
-   「新增一組」，也不加「Sample 1」編號——外層卡片頭已經寫了
-   「Sample IO」，再標編號只會讓人以為可以有第二組。
+   NTHU OJ Helper — Sample IO 分頁：多組 Sample，每組 input / output 並排
+   在 ui.js 之後執行。OJ 的資料模型只有單一組 sample_in / sample_out，
+   所以原生那兩個欄位固定當「Sample 1」，只搬位置、不改 name、不動 form。
+   第 2 組以後的額外組存在 Output 欄位的尾端（由 editor.js 讀寫），這裡
+   的 textarea 刻意不給 name：伺服器不認得，送出去只會多一個沒人收的欄位。
+   畫面上的值只透過 window.__ojSamples 交給 editor.js / transfer.js。
    ============================================================ */
 (() => {
   "use strict";
@@ -63,5 +64,75 @@
         console.error("[OJ Helper] sample.js：提出 panel 後 form owner 斷了");
       }
     }
+
+    // ---- 額外組（Sample 2..n）----------------------------------------
+    // 值的唯一來源就是畫面上的 textarea，不另存陣列，免得兩邊不同步。
+    // 全部插在 grid 旁邊：跟原生欄位同在 #problem_info 底下，打字時原生的
+    // input 事件自然冒泡到 ui.js 的未存檔偵測；ui.js 之後若再包卡片，也是
+    // 整批依序搬走。
+    const head = (title, onDel) => {
+      const h = el("div", "ojsample-head");
+      h.append(el("span", "ojsample-title", title));
+      if (onDel) {
+        const b = el("button", "ojui-btn ojui-btn-danger ojsample-del", "刪除");
+        b.type = "button"; // 預設是 submit，按了會直接送出表單
+        b.addEventListener("click", onDel);
+        h.append(b);
+      }
+      return h;
+    };
+    const list = el("div", "ojsample-extra");
+    const add = el("button", "ojui-btn ojui-btn-ghost ojsample-add", "＋ 新增一組 Sample");
+    add.type = "button";
+    grid.before(head("Sample 1"));
+    grid.after(list, add);
+
+    const renumber = () =>
+      list.querySelectorAll(".ojsample-title").forEach((t, i) => (t.textContent = `Sample ${i + 2}`));
+    // 新增、刪除不會產生 input 事件，要自己補一發，不然離開頁面不會警告
+    const changed = () => list.dispatchEvent(new Event("input", { bubbles: true }));
+    const group = (s) => {
+      const ta = (v) => {
+        const t = el("textarea"); // 不給 name，見檔頭
+        t.spellcheck = false;
+        t.value = v == null ? "" : String(v);
+        return t;
+      };
+      const g = el("div", "ojsample-group");
+      const gg = el("div", "ojsample-grid");
+      gg.append(cell("Input", ta(s?.in)), cell("Output", ta(s?.out)));
+      g.append(
+        head("", () => {
+          g.remove();
+          renumber();
+          changed();
+        }),
+        gg,
+      );
+      return g;
+    };
+    // 程式寫入跟直接改 textarea.value 一樣不發事件：editor.js 載入時灌值
+    // 不該被當成使用者改動，要標髒的呼叫端自己 dispatch（同 transfer.js）。
+    const set = (arr) => {
+      list.replaceChildren(...(Array.isArray(arr) ? arr : []).map(group));
+      renumber();
+    };
+
+    add.addEventListener("click", () => {
+      list.append(group());
+      renumber();
+      list.lastChild.querySelector("textarea").focus();
+      changed();
+    });
+
+    set(window.__ojStoredSamples);
+    window.__ojSamples = {
+      get: () =>
+        [...list.querySelectorAll(".ojsample-grid")].map((g) => {
+          const [i, o] = g.querySelectorAll("textarea");
+          return { in: i.value, out: o.value };
+        }),
+      set,
+    };
   });
 })();
