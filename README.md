@@ -55,6 +55,12 @@ OJ 原本用 CKEditor 編輯 HTML。這個功能把 Description / Input / Output
 
 OJ 未來可能會斷外網，貼外部圖床的連結那天會全部變破圖。所以圖片一律編碼進題目本體。代價是欄位會變大——單張圖超過 300KB 時會跳出提醒，建議先把圖裁小。
 
+#### 多組 Sample
+
+OJ 原生只有一組 Sample Input / Output，那就是第 1 組；第 2 組以後在編輯頁另外加。額外組沒有自己的欄位，是存在 **Output 欄位尾端**。題目頁會把第 1..n 組照原生樣式畫在原本 Sample 的位置，並把原生那塊藏起來。
+
+⚠️ 如果有人**沒裝擴充功能**、直接用原生 CKEditor 編輯並存檔，額外組會壞掉。
+
 ### 4. 題目 zip 匯入匯出（`/problem/<pid>/edit/`）
 
 編輯頁最上方有一列 **📦 題目搬移**，兩顆按鈕。整題打包成一個 zip，搬到另一台 OJ 或另一個題號。
@@ -66,8 +72,10 @@ problem.json      題目名稱、擁有者、judge 設定、標籤、每筆測�
 description.md    Markdown 原稿（不是 HTML）
 input.md
 output.md
-sample/in.txt
+sample/in.txt     第 1 組 Sample（原生欄位）
 sample/out.txt
+sample/in-2.txt   第 2 組以後，依數字排序；缺 out 視為空的
+sample/out-2.txt
 testcases/001.in
 testcases/001.out
 testcases/002.in
@@ -76,11 +84,13 @@ testcases/002.in
 
 **匯出**：抓齊所有欄位、下載每一筆測資，打包後直接下載。
 
-**匯入**：選 zip → 跳出確認框告訴你會套用什麼、會刪掉幾筆測資 → 確認後自動填好文字欄位並重傳測資 → **最後你自己按 Save**（讓你有機會先檢查內容）。
+**匯入**：選 zip → 跳出確認框告訴你會套用什麼、會刪掉幾筆測資 → 確認後自動填好文字欄位、重傳測資，最後自動按 Save。
 
 ⚠️ **匯入會先刪光現有測資**，不可逆。確認框裡會寫清楚數量，看一眼再按。
 
 標籤不會自動套用（OJ 的標籤是另一套 API），匯入完成的訊息會列出來讓你手動加。
+
+**直接建新題**：題目列表（`/problem/`）的 Add problem 旁邊有一顆 **匯入題目**，選 zip 後會自動建一題新題目、跳到它的編輯頁並把整包匯入，不必先手動建題。新題一律先設為隱藏（不照 zip 裡的 visible），檢查完再自己打開。
 
 ### 5. 批量上傳測資（`/problem/<pid>/edit/?tab=testcase`）
 

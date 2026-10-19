@@ -167,6 +167,61 @@
     return [...html.matchAll(/<img[^>]*src="(data:[^"]*)"/g)].map((m) => m[1]);
   }
 
+  // ===== 多組 Sample =====
+  // OJ 每題只有一組 sample_in/out，而且會被 escape；Output 欄位則是 |safe
+  // 原樣輸出，所以額外組只能藏在 Output 尾端：
+  //   …渲染後 HTML\n<!--ojs:base64(JSON 額外組)-->\n<題目頁用的 Sample 區塊>
+  // 註解是給編輯頁讀回來用的，後面那段才是學生看到的。
+  const OJS_OPEN = "\n<!--ojs:";
+
+  // 用 lastIndexOf：前面的 HTML 是使用者寫的，理論上可能出現同樣字串；
+  // 我們自己產生的區塊裡 < 全被 escape 過，不會出現。
+  const cutSamples = (s) => {
+    const at = s.lastIndexOf(OJS_OPEN);
+    return at === -1 ? s : s.slice(0, at);
+  };
+
+  function storedSamples(s) {
+    const at = s.lastIndexOf(OJS_OPEN);
+    if (at === -1) return [];
+    try {
+      const end = s.indexOf(TAG_CLOSE, at);
+      const list = JSON.parse(b64d(s.slice(at + OJS_OPEN.length, end)));
+      if (Array.isArray(list)) return list;
+    } catch {}
+    // 壞掉就當沒有額外組。整個編輯器跟著掛掉的話，連第一組都救不回來。
+    console.warn("[OJ Helper] Output 尾端的額外 Sample 解析失敗，視為沒有額外組");
+    return [];
+  }
+
+  // textarea 是 RCDATA：& 會被解成字元參照、</textarea 會提早關閉，所以要轉。
+  const escText = (s) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  // 完全照原生模板的結構寫，problem.js 才會幫它綁 Download、撐高 textarea。
+  // 不經過 marked：marked 遇到空行會把 textarea 切成好幾段。
+  // pid 用 P-k：原生那組（被藏起來）的 id 是 P_sampleIn，不能撞。
+  // <textarea> 後面先放一個 \n：HTML 規範會吃掉開頭第一個換行，
+  // 不墊這個的話第一行是空行的 sample 會少一行。
+  // 原生區塊用相鄰兄弟選擇器藏，不綁題號：contest.js 匯入比賽時會把 Output
+  // 原樣搬到新題號，綁了題號搬過去就藏不住。
+  function samplesHtml(pid, list) {
+    const io = (k, kind, label, text) =>
+      `<h3>Sample ${label} ${k}&nbsp;&nbsp;<a class='btn btn-primary downloadSample${label}Button' pid='${pid}-${k}'>Download</a></h3>\n` +
+      `<div class='panel-body'>\n` +
+      `<textarea id='${pid}-${k}_sample${kind}' class='panel-body sampleIO' readonly>\n${escText(text)}</textarea>\n` +
+      `</div>\n`;
+    const native =
+      ".ojs-samples~h3:has(>.downloadSampleInputButton,>.downloadSampleOutputButton)";
+    return (
+      `<div class="ojs-samples">\n` +
+      list
+        .map((s, i) => io(i + 1, "In", "Input", s.in) + io(i + 1, "Out", "Output", s.out))
+        .join("") +
+      `</div><style>${native},${native}+.panel-body{display:none}</style>`
+    );
+  }
+
   function pickImage(ed) {
     const inp = document.createElement("input");
     inp.type = "file";
@@ -597,7 +652,10 @@
 
     // 讀 textarea 而非 inst.getData()：textarea 是伺服器吐出的原文，
     // 沒被 CKEditor 正規化過。
-    const stored = ta.value;
+    // Output 尾端的額外 Sample 由 Sample IO 分頁管，不屬於這份原稿，切掉。
+    // 不在 load 一開始就改 textarea：那時還不確定接管得了，沒接管就直接
+    // 送出的話，尾端會被我們弄丟。
+    const stored = id === "id_output" ? cutSamples(ta.value) : ta.value;
     // destroy 失敗就整個放棄這個欄位。CKEditor 若還活著，它會在送出時把
     // 自己的內容寫回 textarea，蓋掉我們轉好的結果——半殘狀態會毀資料。
     if (inst) {
@@ -675,6 +733,10 @@
 
   window.addEventListener("load", () => {
     if (!/\/problem\/\d+\/edit/.test(location.pathname)) return;
+    // sample.js 也在 load 讀這個值，manifest 裡我們排在它前面，所以要在
+    // 任何非同步步驟（whenReady）之前同步設好。
+    const outTa = document.getElementById("id_output");
+    window.__ojStoredSamples = outTa ? storedSamples(outTa.value) : [];
     if (
       typeof marked === "undefined" ||
       typeof MathJax === "undefined" ||
@@ -714,6 +776,13 @@
     // submit 事件不能等 async，所以攔下來、轉換完再用 form.submit() 送出
     // （form.submit() 不會重新觸發 submit 事件，不會無限迴圈）。
     form.addEventListener("submit", async (e) => {
+      // Sample IO 的 UI 沒起來就沿用載入時讀到的，免得把額外組洗掉
+      // 輸入輸出都空的組是按了「新增」沒填，畫出來只是兩個空框
+      const extra = (window.__ojSamples?.get() ?? window.__ojStoredSamples ?? []).filter(
+        (s) => s.in || s.out,
+      );
+      if (extra.length && !active.has("id_output"))
+        console.warn("[OJ Helper] Output 欄位未接管，額外 Sample 無法儲存");
       if (!active.size) return; // 一個欄位都沒接管成功就完全不介入
       // edit.js 綁在 DOM-ready、比這裡早跑。它在 judge type 從 SPECIAL/PARTIAL
       // 換掉時會問「會刪掉原本的 code」，使用者按取消時 jQuery 只做
@@ -741,6 +810,18 @@
         const repacked = pack(md);
         // 註解只存去掉圖片資料的精簡原稿，圖片本體單獨留在 html 那份
         ta.value = `${TAG_OPEN}${b64e(repacked.text)}${TAG_CLOSE}\n${html}`;
+        // 只有 1 組時什麼都不加，題目頁維持原生樣子。有額外組時第 1 組也要
+        // 一起畫：原生區塊會被藏掉，順序才會是 1, 2, …
+        if (id === "id_output" && extra.length) {
+          const first = {
+            in: form.querySelector("[name=sample_in]")?.value ?? "",
+            out: form.querySelector("[name=sample_out]")?.value ?? "",
+          };
+          const pid = location.pathname.match(/\/problem\/(\d+)/)[1];
+          ta.value +=
+            `${OJS_OPEN}${b64e(JSON.stringify(extra))}${TAG_CLOSE}\n` +
+            samplesHtml(pid, [first, ...extra]);
+        }
       }
 
       form.dataset.ojSubmitting = "1"; // 讓 ui.js 的離開警告放行

@@ -1,5 +1,5 @@
 /* ============================================================
-   NTHU OJ Helper — Sample IO 並排版面（sample.js 專用）
+   NTHU OJ Helper — Sample IO 多組並排版面（sample.js 專用）
    token 沿用 ui.css 的 --hair / --canvas / --muted / --mono …
    全部關在 .ojui 底下，不外洩到站台其他頁面。
    ============================================================ */
@@ -15,7 +15,8 @@
 }
 .ojui .ojsample-grid:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(91, 45, 144, 0.14);
+  /* 不寫死 rgba(91,45,144,…)：那是淺色主色，深色下疊在暗底幾乎看不出來 */
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .ojui .ojsample-cell {
@@ -24,14 +25,14 @@
   min-width: 0; /* 沒有這行，長行輸入會把 grid 欄撐爆而不是自己捲動 */
 }
 .ojui .ojsample-cell + .ojsample-cell {
-  border-left: 1px solid #ece9e5;
+  border-left: 1px solid var(--hair);
 }
 
 /* ---- 欄位標題 -------------------------------------------------- */
 .ojui .ojsample-label {
   padding: 7px 12px;
   background: var(--canvas);
-  border-bottom: 1px solid #ece9e5;
+  border-bottom: 1px solid var(--hair);
   font-family: var(--sans);
   font-size: 11px;
   font-weight: 600;
@@ -59,10 +60,37 @@
   color: var(--ink);
   resize: vertical;
 }
-.ojui .ojsample-cell textarea:focus {
+/* 多一層 .ojsample-grid：dark.css 的 html[data-oj-theme] .ojui textarea:focus
+   權重比單純 .ojui .ojsample-cell textarea:focus 高，會把 ring 畫回欄內 */
+.ojui .ojsample-grid .ojsample-cell textarea:focus {
   outline: none;
   border: 0;
   box-shadow: none; /* 蓋掉 ui.css 的通用 textarea focus ring，改由外框顯示 */
+}
+
+/* ---- 每組標題列與新增鈕 ---------------------------------------- */
+.ojui .ojsample-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  margin-bottom: 8px;
+}
+.ojui .ojsample-title {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ojui .ojsample-del {
+  padding: 6px 9px;
+  font-size: 12px;
+}
+.ojui .ojsample-group {
+  margin-top: 20px;
+}
+.ojui .ojsample-add {
+  margin-top: 16px;
 }
 
 /* ---- 窄視窗改上下排 -------------------------------------------- */
@@ -72,7 +100,7 @@
   }
   .ojui .ojsample-cell + .ojsample-cell {
     border-left: 0;
-    border-top: 1px solid #ece9e5;
+    border-top: 1px solid var(--hair);
   }
   .ojui .ojsample-cell textarea {
     height: 220px;
