@@ -23,13 +23,15 @@
   font-size: 13px;
   color: var(--muted);
   margin-bottom: 8px;
+}
+.ojsb-head > * {
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .ojsb-head b {
   color: var(--ink);
-  margin-right: 6px;
 }
 .ojsb-plot {
   display: flex;
@@ -74,4 +76,57 @@
   border-top: 1px solid var(--line);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 工具列：學生人數、已隱藏的題目、重設 */
+.ojsb-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ojsb-tools input {
+  width: 80px;
+  margin-left: 4px;
+}
+.ojsb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ojsb-tools button,
+.ojsb-hide {
+  font-size: 12px;
+  padding: 1px 8px;
+  border: 1px solid var(--hair);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.ojsb-chart {
+  position: relative;
+}
+.ojsb-grid .ojsb-chart {
+  cursor: grab;
+}
+.ojsb-grid .ojsb-head {
+  padding-right: 28px; /* 讓出 ✕ 的位置 */
+}
+.ojsb-hide {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0 6px;
+  opacity: 0.4;
+}
+.ojsb-chart:hover .ojsb-hide {
+  opacity: 1;
+}
+.ojsb-dragging {
+  opacity: 0.4;
 }
